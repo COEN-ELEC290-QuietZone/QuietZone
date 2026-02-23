@@ -1,8 +1,18 @@
 #include <Arduino.h>
 #include "BluetoothSerial.h"
+#include <WiFi.h>
+#include <PubSubClient.h>
 
 // === BLUETOOTH SETUP ===
 BluetoothSerial SerialBT;
+
+// === WIFI & MQTT SETUP ===
+const char *ssid = "ESP32_Network";       // Your Pi hotspot name
+const char *password = "yourpassword123"; // Your Pi hotspot password
+const char *mqtt_server = "192.168.4.1";  // Pi's static IP (always this)
+
+WiFiClient espClient;
+PubSubClient mqttClient(espClient);
 
 // === LED EFFECTS ENUM ===
 enum LedEffect
@@ -25,11 +35,16 @@ void resetStatistics();
 void printHelp();
 void dualPrint(String message);
 void dualPrintln(String message);
+void connectWiFi();
+void connectMQTT();
+void publishMotionEvent(bool motionState);
 
 // === PIN DEFINITIONS ===
-#define PIR_PIN 32        // HC-SR501 PIR sensor
-#define LED_BUILTIN 2     // Built-in LED
-#define STATUS_LED_PIN 26 // External status LED (optional)
+#define PIR_PIN 32
+#ifndef LED_BUILTIN
+#define LED_BUILTIN 2
+#endif
+#define STATUS_LED_PIN 26
 
 // === MOTION DETECTION VARIABLES ===
 bool motionDetected = false;
@@ -43,25 +58,90 @@ unsigned int totalMotionEvents = 0;
 unsigned int motionEventsToday = 0;
 
 // === TIMING CONSTANTS ===
-const unsigned long motionTimeout = 1000; // 1 second timeout
+const unsigned long motionTimeout = 1000;
 
 LedEffect currentLedEffect = LED_OFF;
 unsigned long ledEffectTimer = 0;
 bool ledState = false;
 
+// === WIFI CONNECTION ===
+void connectWiFi()
+{
+  dualPrintln("📡 Connecting to Pi hotspot...");
+  WiFi.begin(ssid, password);
+
+  int attempts = 0;
+  while (WiFi.status() != WL_CONNECTED && attempts < 20)
+  {
+    delay(500);
+    Serial.print(".");
+    attempts++;
+  }
+
+  if (WiFi.status() == WL_CONNECTED)
+  {
+    dualPrintln("\n✅ WiFi connected! IP: " + WiFi.localIP().toString());
+  }
+  else
+  {
+    dualPrintln("\n❌ WiFi failed. Will retry in loop.");
+  }
+}
+
+// === MQTT CONNECTION ===
+void connectMQTT()
+{
+  mqttClient.setServer(mqtt_server, 1883);
+
+  int attempts = 0;
+  while (!mqttClient.connected() && attempts < 5)
+  {
+    dualPrintln("🔌 Connecting to MQTT broker...");
+    if (mqttClient.connect("ESP32_MotionSensor"))
+    {
+      dualPrintln("✅ MQTT connected!");
+    }
+    else
+    {
+      dualPrintln("❌ MQTT failed. Retrying...");
+      delay(1000);
+      attempts++;
+    }
+  }
+}
+
+// === PUBLISH MOTION EVENT ===
+void publishMotionEvent(bool motionState)
+{
+  if (!mqttClient.connected())
+    connectMQTT();
+
+  if (motionState)
+  {
+    // Send motion detected with event count
+    String payload = "{\"motion\":true,\"event\":" + String(totalMotionEvents) + "}";
+    mqttClient.publish("sensors/esp32/motion", payload.c_str());
+    dualPrintln("📤 MQTT sent: motion detected");
+  }
+  else
+  {
+    String payload = "{\"motion\":false}";
+    mqttClient.publish("sensors/esp32/motion", payload.c_str());
+    dualPrintln("📤 MQTT sent: motion ended");
+  }
+}
+
 // === SETUP FUNCTION ===
 void setup()
 {
   Serial.begin(115200);
-  SerialBT.begin("SmartMotionHub"); // Bluetooth device name
+  SerialBT.begin("SmartMotionHub");
   systemStartTime = millis();
 
-  // Configure pins
   pinMode(PIR_PIN, INPUT);
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(STATUS_LED_PIN, OUTPUT);
 
-  // Initial states
   digitalWrite(LED_BUILTIN, LOW);
   digitalWrite(STATUS_LED_PIN, LOW);
 
@@ -69,25 +149,35 @@ void setup()
   dualPrintln("╔══════════════════════════════════════╗");
   dualPrintln("║        🚀 SMART MOTION HUB 🚀        ║");
   dualPrintln("║     Enhanced PIR Detection System    ║");
-  dualPrintln("║       📱 Bluetooth Enabled 📱        ║");
+  dualPrintln("║       📱 Bluetooth + MQTT 📱         ║");
   dualPrintln("╚══════════════════════════════════════╝");
   dualPrintln("");
 
+  connectWiFi();
+  connectMQTT();
+
   dualPrintln("✅ System ready! Monitoring for motion...");
-  dualPrintln("📡 Bluetooth: SmartMotionHub");
-  dualPrintln("🎛️  Commands: 'stats', 'reset', 'alert on/off', 'help'");
   dualPrintln("");
 }
 
 // === MAIN LOOP ===
 void loop()
 {
+  // Keep MQTT connection alive
+  if (!mqttClient.connected())
+  {
+    if (WiFi.status() != WL_CONNECTED)
+      connectWiFi();
+    connectMQTT();
+  }
+  mqttClient.loop();
+
   handleSerialCommands();
   handleBluetoothCommands();
   updateMotionDetection();
   updateLedEffects();
 
-  delay(50); // Smooth operation
+  delay(50);
 }
 
 // === MOTION DETECTION LOGIC ===
@@ -100,36 +190,31 @@ void updateMotionDetection()
   {
     if (!motionDetected)
     {
-      // Motion just started
       motionDetected = true;
       lastMotionTime = currentTime;
       totalMotionEvents++;
       motionEventsToday++;
 
-      // Alert sequence
       if (alertMode)
-      {
         setLedEffect(LED_FAST_BLINK);
-      }
 
       dualPrintln("🔴 MOTION DETECTED! [Event #" + String(totalMotionEvents) + "]");
+      publishMotionEvent(true); // ← Send to Raspberry Pi
     }
     else
     {
-      // Motion continuing
       lastMotionTime = currentTime;
     }
   }
   else
   {
-    // No motion detected
     if (motionDetected && (currentTime - lastMotionTime > motionTimeout))
     {
-      // Motion just ended
       motionDetected = false;
       setLedEffect(LED_PULSE);
 
       dualPrintln("🟢 Motion ended.");
+      publishMotionEvent(false); // ← Send to Raspberry Pi
     }
   }
 
@@ -172,26 +257,21 @@ void updateLedEffects()
       digitalWrite(STATUS_LED_PIN, LOW);
     }
     if (elapsed > 3000)
-      setLedEffect(LED_PULSE); // Auto-transition
+      setLedEffect(LED_PULSE);
     break;
 
   case LED_SLOW_BLINK:
     if (elapsed % 1000 < 500)
-    {
       digitalWrite(LED_BUILTIN, HIGH);
-    }
     else
-    {
       digitalWrite(LED_BUILTIN, LOW);
-    }
     break;
 
   case LED_PULSE:
-    // Breathing effect
     int brightness = (sin(elapsed * 0.005) + 1) * 127;
     analogWrite(LED_BUILTIN, brightness);
     if (elapsed > 10000)
-      setLedEffect(LED_OFF); // Auto-off after 10s
+      setLedEffect(LED_OFF);
     break;
   }
 }
@@ -206,13 +286,9 @@ void handleSerialCommands()
     command.toLowerCase();
 
     if (command == "stats")
-    {
       printStatistics();
-    }
     else if (command == "reset")
-    {
       resetStatistics();
-    }
     else if (command == "alert on")
     {
       alertMode = true;
@@ -224,13 +300,9 @@ void handleSerialCommands()
       dualPrintln("🔇 Visual alerts disabled");
     }
     else if (command == "help")
-    {
       printHelp();
-    }
     else
-    {
       dualPrintln("❓ Unknown command. Type 'help' for available commands.");
-    }
   }
 }
 
@@ -244,13 +316,9 @@ void handleBluetoothCommands()
     command.toLowerCase();
 
     if (command == "stats")
-    {
       printStatistics();
-    }
     else if (command == "reset")
-    {
       resetStatistics();
-    }
     else if (command == "alert on")
     {
       alertMode = true;
@@ -262,13 +330,9 @@ void handleBluetoothCommands()
       dualPrintln("🔇 Visual alerts disabled");
     }
     else if (command == "help")
-    {
       printHelp();
-    }
     else
-    {
       dualPrintln("❓ Unknown command. Type 'help' for available commands.");
-    }
   }
 }
 
@@ -280,7 +344,9 @@ void printStatistics()
   dualPrintln("🔢 Total motion events: " + String(totalMotionEvents));
   dualPrintln("📅 Events today: " + String(motionEventsToday));
   dualPrintln("🔊 Alert mode: " + String(alertMode ? "ON" : "OFF"));
-  dualPrintln("⏰ System uptime: " + String((millis() - systemStartTime) / 60000.0, 1) + " minutes");
+  dualPrintln("📡 WiFi status: " + String(WiFi.status() == WL_CONNECTED ? "Connected" : "Disconnected"));
+  dualPrintln("🔌 MQTT status: " + String(mqttClient.connected() ? "Connected" : "Disconnected"));
+  dualPrintln("⏰ Uptime: " + String((millis() - systemStartTime) / 60000.0, 1) + " minutes");
   dualPrintln("==========================================");
   dualPrintln("");
 }
