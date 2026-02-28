@@ -58,7 +58,7 @@ This project follows an Agile Scrum methodology with iterative development cycle
 | TBD        | TBD        | Team Member |
 | TBD        | TBD        | Team Member |
 | TBD        | TBD        | Team Member |
-| TBD        | TBD        | Team Member |
+| Omar Bendjama | 40281483| Team Member |
 | Tonny Zhao | 40283194   | Team Member |
 
 ## Project Repository
