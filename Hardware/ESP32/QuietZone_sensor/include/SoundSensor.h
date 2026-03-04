@@ -20,10 +20,12 @@ public:
     void begin();
     void calibrateDCOffset(); // Calculate the actual DC offset
 
-    // RMS-based sound measurement
+    // Sound measurement (updated to use SparkFun approach)
     float readSoundLevel(); // Returns sound level in dB
-    float readRMSValue();   // Returns RMS AC component
-    void printDebugInfo();  // Print detailed debug information
+    float readRMSValue();   // Returns current analog reading (envelope)
+    void printDebugInfo();  // Print detailed debug information with status
+    bool isSoundDetected(); // Returns gate pin status (interrupt-based detection)
+    String getStatus();     // Returns status as string (Quiet, Moderate, Loud)
 };
 
 #endif // SOUND_SENSOR_H

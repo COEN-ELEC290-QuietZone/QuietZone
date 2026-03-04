@@ -28,21 +28,22 @@ void loop()
     // Maintain MQTT connection
     // mqttManager.maintainConnection();  // Commented out until Raspberry Pi is available
 
-    // Read sound level
+    // Read sound level and status
     float soundLevel = soundSensor.readSoundLevel();
+    String soundStatus = soundSensor.getStatus();
 
     // Print detailed debug information
     soundSensor.printDebugInfo();
 
     // Print simple sound level for monitoring
-    Serial.println("Simple Sound Level: " + String(soundLevel, 1) + " dB");
+    Serial.println("Simple Sound Level: " + String(soundLevel, 1) + " dB, Status: " + soundStatus);
 
     // Publish to MQTT if connected and interval elapsed
     // if (mqttManager.isConnected() && mqttManager.shouldPublish())
     // {
-    //     if (mqttManager.publishSoundData(soundLevel))
+    //     if (mqttManager.publishSoundData(soundLevel, soundStatus))
     //     {
-    //         Serial.println("[MQTT] Data published: " + String(soundLevel, 1) + " dB");
+    //         Serial.println("[MQTT] Data published: Sensor 1, " + String(soundLevel, 1) + " dB, Status: " + soundStatus);
     //     }
     //     mqttManager.updateLastPublish();
     // }

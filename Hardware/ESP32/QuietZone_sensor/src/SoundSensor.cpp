@@ -1,98 +1,129 @@
+/******************************************************************************
+ * SoundSensor.cpp
+ * Sound detector implementation - ESP32 version
+ * Based on SparkFun Sound Detector sample code
+ * Byron Jacquot @ SparkFun Electronics
+ * February 19, 2014
+ * https://github.com/sparkfun/Sound_Detector
+ *
+ * Adapted for SoundSensor class implementation
+ *
+ * Connections:
+ * The Sound Detector is connected to the ESP32 as follows:
+ * (Sound Detector -> ESP32 pin)
+ * GND → GND
+ * VCC → 3.3V
+ * Gate → GPIO 4
+ * Envelope → GPIO 35 (ADC1_CH0)
+ *
+ ******************************************************************************/
+
 #include "SoundSensor.h"
 
-SoundSensor::SoundSensor() : dcOffset(0)
+// Hardware connections for SparkFun Sound Detector
+#define PIN_GATE_IN 4 // GPIO4 for gate input
+#define PIN_LED_OUT 2 // GPIO2 for built-in LED
+
+// Static variables for interrupt handling
+static volatile bool soundDetected = false;
+
+// Interrupt service routine
+void IRAM_ATTR soundISR()
+{
+    soundDetected = digitalRead(PIN_GATE_IN);
+    digitalWrite(PIN_LED_OUT, soundDetected);
+}
+
+SoundSensor::SoundSensor() : dcOffset(0.0)
 {
 }
 
 void SoundSensor::begin()
 {
-    analogReadResolution(12); // ESP32 default = 12-bit (0–4095)
+    // Configure LED pin as output
+    pinMode(PIN_LED_OUT, OUTPUT);
+
+    // Configure gate input for interrupt
+    pinMode(PIN_GATE_IN, INPUT);
+    attachInterrupt(digitalPinToInterrupt(PIN_GATE_IN), soundISR, CHANGE);
+
+    // Calibrate DC offset for more accurate readings
     calibrateDCOffset();
 
-    Serial.println("Sound Level Monitor Initialized");
-    Serial.println("DC Offset: " + String(dcOffset, 1));
-    Serial.println("Calibration Offset: " + String(CALIBRATION_OFFSET) + " dB");
+    Serial.println("[SoundSensor] SparkFun Sound Detector initialized");
 }
 
 void SoundSensor::calibrateDCOffset()
 {
-    Serial.println("Calculating DC offset...");
+    Serial.println("[SoundSensor] Calibrating DC offset...");
+
     long sum = 0;
-    for (int i = 0; i < 1000; i++)
+    for (int i = 0; i < SAMPLES; i++)
     {
         sum += analogRead(MIC_PIN);
         delay(1);
     }
-    dcOffset = sum / 1000.0;
+
+    dcOffset = (float)sum / SAMPLES;
+    Serial.println("[SoundSensor] DC Offset: " + String(dcOffset, 2));
 }
 
 float SoundSensor::readRMSValue()
 {
-    float sumSquares = 0;
-
-    // Collect samples for RMS calculation
-    for (int i = 0; i < SAMPLES; i++)
-    {
-        int sample = analogRead(MIC_PIN);
-
-        // Calculate AC component (remove actual DC bias)
-        float acSample = sample - dcOffset;
-        sumSquares += acSample * acSample;
-
-        delayMicroseconds(200); // Small delay between samples
-    }
-
-    // Calculate RMS value of AC component
-    return sqrt(sumSquares / SAMPLES);
+    // Read the envelope output from SparkFun Sound Detector
+    return analogRead(MIC_PIN);
 }
 
 float SoundSensor::readSoundLevel()
 {
-    float rmsAC = readRMSValue();
+    float envelopeValue = readRMSValue();
 
-    // Convert RMS to decibels (with calibration offset)
-    if (rmsAC > 1.0) // Avoid log of very small numbers
+    if (envelopeValue <= 1)
     {
-        return 20 * log10(rmsAC) + CALIBRATION_OFFSET;
+        return -80.0; // Very quiet, return a low dB value
+    }
+
+    // Convert envelope to dB using SparkFun approach with calibration offset
+    float dB = 20 * log10(envelopeValue) + CALIBRATION_OFFSET;
+    return dB;
+}
+
+bool SoundSensor::isSoundDetected()
+{
+    return soundDetected;
+}
+
+String SoundSensor::getStatus()
+{
+    float envelopeValue = readRMSValue();
+
+    // Use SparkFun thresholds for status determination
+    if (envelopeValue <= 10)
+    {
+        return "Quiet";
+    }
+    else if (envelopeValue <= 30)
+    {
+        return "Moderate";
     }
     else
     {
-        return CALIBRATION_OFFSET - 60; // Very quiet baseline
+        return "Loud";
     }
 }
 
 void SoundSensor::printDebugInfo()
 {
-    int maxSample = 0;
-    int minSample = 4095;
-    float sumSquares = 0;
+    float envelopeValue = readRMSValue();
+    float dBLevel = readSoundLevel();
+    String status = getStatus();
+    bool gateStatus = isSoundDetected();
 
-    // Collect samples and track min/max
-    for (int i = 0; i < SAMPLES; i++)
-    {
-        int sample = analogRead(MIC_PIN);
-
-        if (sample > maxSample)
-            maxSample = sample;
-        if (sample < minSample)
-            minSample = sample;
-
-        float acSample = sample - dcOffset;
-        sumSquares += acSample * acSample;
-
-        delayMicroseconds(200);
-    }
-
-    float rmsAC = sqrt(sumSquares / SAMPLES);
-    float soundLevel_dB = (rmsAC > 1.0) ? 20 * log10(rmsAC) + CALIBRATION_OFFSET : CALIBRATION_OFFSET - 60;
-
-    Serial.print("Range: ");
-    Serial.print(minSample);
-    Serial.print("-");
-    Serial.print(maxSample);
-    Serial.print(", RMS_AC: ");
-    Serial.print(rmsAC, 2);
-    Serial.print(", Sound Level: ");
-    Serial.print(soundLevel_dB, 1);
-    Serial.println(" dB");
+    Serial.println("=== SparkFun Sound Detector Debug ===");
+    Serial.println("Envelope Value: " + String(envelopeValue));
+    Serial.println("Sound Level: " + String(dBLevel, 1) + " dB");
+    Serial.println("Status: " + status);
+    Serial.println("Gate Detection: " + String(gateStatus ? "SOUND" : "QUIET"));
+    Serial.println("DC Offset: " + String(dcOffset, 2));
+    Serial.println("=====================================");
 }

@@ -72,14 +72,14 @@ void MQTTClientManager::maintainConnection()
     mqttClient.loop();
 }
 
-bool MQTTClientManager::publishSoundData(float dbLevel)
+bool MQTTClientManager::publishSoundData(float dbLevel, String status)
 {
-    String payload = "{\"sensor_id\":\"" + String(sensor_id) + "\",\"db_level\":" + String(dbLevel, 1) + "}";
-    bool published = mqttClient.publish("sensors/esp32/sound_db", payload.c_str());
+    String payload = "{\"sensor_name\":\"Sensor 1\",\"sensor_id\":\"" + String(sensor_id) + "\",\"db_level\":" + String(dbLevel, 1) + ",\"status\":\"" + status + "\"}";
+    bool published = mqttClient.publish("sensors/esp32/sound_data", payload.c_str());
 
     if (published)
     {
-        Serial.println("[INFO] MQTT publish OK: " + String(dbLevel, 1) + " dB");
+        Serial.println("[INFO] MQTT publish OK: Sensor 1, " + String(dbLevel, 1) + " dB, Status: " + status);
     }
     else
     {

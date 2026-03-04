@@ -24,7 +24,7 @@ public:
     void connectWiFi();
     void connectMQTT();
     void maintainConnection();
-    bool publishSoundData(float dbLevel);
+    bool publishSoundData(float dbLevel, String status);
     bool isConnected();
     bool shouldPublish();
     void updateLastPublish();
