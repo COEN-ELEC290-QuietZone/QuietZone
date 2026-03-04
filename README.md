@@ -53,13 +53,13 @@ This project follows an Agile Scrum methodology with iterative development cycle
 
 ## Team Members
 
-| Name       | Student ID | Role        |
-| ---------- | ---------- | ----------- |
-| TBD        | TBD        | Team Member |
-| TBD        | TBD        | Team Member |
-| Ethan Lee  | 40207989   | Team Member |
-| Omar Bendjama | 40281483| Team Member |
-| Tonny Zhao | 40283194   | Team Member |
+| Name            | Student ID | Role        |
+| --------------- | ---------- | ----------- |
+| TBD             | TBD        | Team Member |
+| Angad Malhotra  | 40133666   | Team Member |
+| Ethan Lee       | 40207989   | Team Member |
+| Omar Bendjama   | 40281483   | Team Member |
+| Tonny Zhao      | 40283194   | Team Member |
 
 ## Project Repository
 
