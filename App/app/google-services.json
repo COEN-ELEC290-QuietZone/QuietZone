@@ -1,0 +1,49 @@
+{
+  "project_info": {
+    "project_number": "795754368218",
+    "firebase_url": "https://quiet-zone-1-default-rtdb.firebaseio.com",
+    "project_id": "quiet-zone-1",
+    "storage_bucket": "quiet-zone-1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:795754368218:android:e617b3421f81cee396e9e3",
+        "android_client_info": {
+          "package_name": "com.example.quietzone_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDoq05apbFGejSRwDZj7cR9w__K83PB26s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:795754368218:android:aad73440220b8df596e9e3",
+        "android_client_info": {
+          "package_name": "com.example.quietzone_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDoq05apbFGejSRwDZj7cR9w__K83PB26s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
