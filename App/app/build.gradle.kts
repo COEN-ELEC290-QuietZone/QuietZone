@@ -1,16 +1,15 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.google.services)
 }
 
 android {
-    namespace = "com.example.quietzone_app"
+    namespace = "com.example.userinterface_ver0"
     compileSdk {
         version = release(36)
     }
 
     defaultConfig {
-        applicationId = "com.example.quietzone_app"
+        applicationId = "com.example.userinterface_ver0"
         minSdk = 24
         targetSdk = 36
         versionCode = 1
@@ -39,11 +38,8 @@ dependencies {
     implementation(libs.material)
     implementation(libs.activity)
     implementation(libs.constraintlayout)
-
-    implementation(platform(libs.firebase.bom))
-    implementation(libs.firebase.database)
-
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
+    implementation("com.github.anastr:speedviewlib:1.6.1")
 }
