@@ -33,7 +33,7 @@ Finding quiet spaces in busy environments like libraries, study areas, or campus
 ## Technology Stack
 
 **Embedded Hardware:** ESP32 (Arduino Framework)  
-**Sensors:** Sound Sensors (dB measurement), LED Indicators  
+**Sensors:** Sparkfun Sound Detector (dB measurement), LED Indicators  
 **Communication:** WiFi for wireless data transmission  
 **Central Hub:** Raspberry Pi (Linux-based)  
 **Database:** Firebase (Cloud database)  
