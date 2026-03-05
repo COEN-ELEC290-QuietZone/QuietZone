@@ -55,7 +55,7 @@ This project follows an Agile Scrum methodology with iterative development cycle
 
 | Name            | Student ID | Role        |
 | --------------- | ---------- | ----------- |
-| TBD             | TBD        | Team Member |
+| Angad Singh     | 4028556    | Team Member |
 | Angad Malhotra  | 40133666   | Team Member |
 | Ethan Lee       | 40207989   | Team Member |
 | Omar Bendjama   | 40281483   | Team Member |
