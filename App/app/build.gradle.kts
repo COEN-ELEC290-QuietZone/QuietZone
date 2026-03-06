@@ -5,9 +5,7 @@ plugins {
 
 android {
     namespace = "com.example.quietzone_app"
-    compileSdk {
-        version = release(36)
-    }
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.quietzone_app"
@@ -42,6 +40,9 @@ dependencies {
 
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.database)
+
+    // SpeedView library for gauge displays
+    implementation("com.github.anastr:speedviewlib:1.6.1")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)

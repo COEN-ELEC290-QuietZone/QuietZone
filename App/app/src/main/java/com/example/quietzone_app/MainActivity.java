@@ -1,24 +1,18 @@
 package com.example.quietzone_app;
 
+import android.content.Intent;
 import android.os.Bundle;
-import android.util.Log; // Required for error logging
-import android.widget.TextView; // Required to talk to your UI
+import android.widget.Button;
 
 import androidx.activity.EdgeToEdge;
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
-// --- Firebase Imports ---
-import com.google.firebase.database.DataSnapshot;
-import com.google.firebase.database.DatabaseError;
-import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.ValueEventListener;
-
 public class MainActivity extends AppCompatActivity {
+
+    private Button loginButton, settingsButton, noiseButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -33,34 +27,18 @@ public class MainActivity extends AppCompatActivity {
             return insets;
         });
 
-        // --- 1. Link the Java variable to the XML ID ---
-        TextView statusTextView = findViewById(R.id.soundText);
+        // Initialize buttons
+        loginButton = findViewById(R.id.LoginButton);
+        settingsButton = findViewById(R.id.SettingsButton);
+        noiseButton = findViewById(R.id.NoiseButton);
 
-        // --- 2. Initialize Firebase ---
-        FirebaseDatabase database = FirebaseDatabase.getInstance();
-        // Make sure this path matches exactly what your bridge.py sends!
-        DatabaseReference myRef = database.getReference("sound_data/live/sensor_1");
+        // Navigate to LoginActivity
+        loginButton.setOnClickListener(v -> startActivity(new Intent(this, LoginActivity.class)));
 
-        // --- 3. Listen for Live Data ---
-        myRef.addValueEventListener(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                // Check if data actually exists to avoid crashes
-                if (dataSnapshot.exists()) {
-                    // Assuming your Firebase structure is: sensor_1 -> value: 75
-                    Object valObj = dataSnapshot.child("value").getValue();
-                    if (valObj != null) {
-                        String value = valObj.toString();
-                        statusTextView.setText("Noise Level: " + value + " dB");
-                    }
-                }
-            }
+        // Navigate to SettingsActivity
+        settingsButton.setOnClickListener(v -> startActivity(new Intent(this, SettingsActivity.class)));
 
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                // Log the error if something goes wrong (like permissions)
-                Log.w("QuietZone", "Firebase read failed.", error.toException());
-            }
-        });
+        // Navigate to NoiseActivity (where sensor data is displayed)
+        noiseButton.setOnClickListener(v -> startActivity(new Intent(this, NoiseActivity.class)));
     }
 }
