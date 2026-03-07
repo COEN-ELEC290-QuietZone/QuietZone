@@ -23,7 +23,6 @@ import com.google.firebase.database.ValueEventListener;
 
 public class NoiseActivity extends AppCompatActivity {
 
-    private ProgressiveGauge gauge;
     private SpeedView speedView;
     private TextView soundText;
 
@@ -43,14 +42,7 @@ public class NoiseActivity extends AppCompatActivity {
 
         // --- Get references to UI elements ---
         soundText = findViewById(R.id.soundText);
-        gauge = findViewById(R.id.gauge);
         speedView = findViewById(R.id.speedView);
-
-        // --- ProgressiveGauge setup ---
-        gauge.setMaxSpeed(120);
-        gauge.setUnit("dB");
-        gauge.setSpeedTextColor(Color.BLACK);
-        gauge.speedTo(50f); // dummy value in dB
 
         // --- SpeedView setup ---
         speedView.setMaxSpeed(120);
@@ -60,9 +52,9 @@ public class NoiseActivity extends AppCompatActivity {
 
         // --- Initialize Firebase and listen for live data ---
         FirebaseDatabase database = FirebaseDatabase.getInstance();
-        DatabaseReference myRef = database.getReference("sound_data/live/sensor_1");
+        DatabaseReference myRef = database.getReference("sound_data/live/sensor_2");
 
-        Log.d("NoiseActivity", "Firebase listener attached to: sound_data/live/sensor_1");
+        Log.d("NoiseActivity", "Firebase listener attached to: sound_data/live/sensor_2");
 
         myRef.addValueEventListener(new ValueEventListener() {
             @Override
@@ -93,8 +85,7 @@ public class NoiseActivity extends AppCompatActivity {
                                 // Update TextView
                                 soundText.setText("Sound Level: " + String.format("%.1f", soundLevel) + " dB");
 
-                                // Update gauges
-                                gauge.speedTo(soundLevel);
+                                // Update gauge
                                 speedView.speedTo(soundLevel);
                             }
                         } else {
@@ -105,7 +96,6 @@ public class NoiseActivity extends AppCompatActivity {
                             if (value != null) {
                                 float soundLevel = Float.parseFloat(value.toString());
                                 soundText.setText("Sound Level: " + String.format("%.1f", soundLevel) + " dB");
-                                gauge.speedTo(soundLevel);
                                 speedView.speedTo(soundLevel);
                             }
                         }
@@ -114,7 +104,7 @@ public class NoiseActivity extends AppCompatActivity {
                         soundText.setText("Error reading data: " + e.getMessage());
                     }
                 } else {
-                    Log.w("NoiseActivity", "No data at path sound_data/live/sensor_1");
+                    Log.w("NoiseActivity", "No data at path sound_data/live/sensor_2");
                     soundText.setText("Waiting for sensor...");
                 }
             }
