@@ -12,7 +12,7 @@ import androidx.core.view.WindowInsetsCompat;
 
 public class MainActivity extends AppCompatActivity {
 
-    private Button loginButton, settingsButton, noiseButton;
+    private Button loginButton, noiseButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -29,14 +29,10 @@ public class MainActivity extends AppCompatActivity {
 
         // Initialize buttons
         loginButton = findViewById(R.id.LoginButton);
-        settingsButton = findViewById(R.id.SettingsButton);
         noiseButton = findViewById(R.id.NoiseButton);
 
         // Navigate to LoginActivity
         loginButton.setOnClickListener(v -> startActivity(new Intent(this, LoginActivity.class)));
-
-        // Navigate to SettingsActivity
-        settingsButton.setOnClickListener(v -> startActivity(new Intent(this, SettingsActivity.class)));
 
         // Navigate to NoiseActivity (where sensor data is displayed)
         noiseButton.setOnClickListener(v -> startActivity(new Intent(this, NoiseActivity.class)));
