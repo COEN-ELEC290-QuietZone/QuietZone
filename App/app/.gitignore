@@ -1,1 +1,4 @@
 /build
+
+# Firebase config (SENSITIVE - never commit)
+google-services.json
