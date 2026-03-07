@@ -1,0 +1,51 @@
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build outputs
+**/build/
+**/*.apk
+**/*.aab
+.gradle/
+
+# Firebase config (SENSITIVE - never commit)
+App/app/google-services.json
+**/google-services.json
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+**/local.properties
+**/secrets.properties
+**/keystore.properties
+*.jks
+*.keystore
+
+# Test coverage
+coverage/
+.coverage
+htmlcov/
+
+# Android Studio
+.gradle/
+.navigation/
+captures/
+.externalNativeBuild/
+.cxx/
+local.properties
+
+# Hardware/ESP32 (if needed)
+Hardware/ESP32/**/.pio/
+Hardware/ESP32/**/.vscode/
+
+# Keep gradle wrapper JAR
+!gradle/wrapper/gradle-wrapper.jar

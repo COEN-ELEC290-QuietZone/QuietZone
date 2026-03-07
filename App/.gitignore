@@ -13,3 +13,11 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Firebase config (SENSITIVE - never commit)
+app/google-services.json
+
+# Signing keys
+*.jks
+*.keystore
+keystore.properties
