@@ -17,13 +17,11 @@
             android:name=".LoginActivity"
             android:exported="false"
             android:parentActivityName=".MainActivity"
-            android:theme="@style/Theme.AppCompat.Light.DarkActionBar"
             android:label="Room 1" />
         <activity
             android:name=".NoiseActivity"
             android:exported="false"
             android:parentActivityName=".MainActivity"
-            android:theme="@style/Theme.AppCompat.Light.DarkActionBar"
             android:label="Room 2" />
         <activity
             android:name=".MainActivity"
