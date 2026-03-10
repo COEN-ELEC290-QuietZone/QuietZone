@@ -70,21 +70,29 @@ void SoundSensor::calibrateDCOffset()
 
 float SoundSensor::readRMSValue()
 {
-    // Read the envelope output from SparkFun Sound Detector
-    return analogRead(MIC_PIN);
+    long sum = 0;
+    int numberOfSamples = 100; // Take 100 readings instead of 1
+    
+    for(int i = 0; i < numberOfSamples; i++) {
+        sum += analogRead(MIC_PIN);
+        delayMicroseconds(50); // Small gap between samples
+    }
+    
+    return (float)sum / numberOfSamples;
 }
 
 float SoundSensor::readSoundLevel()
 {
     float envelopeValue = readRMSValue();
+    // Use the difference between current value and the baseline
+    float signal = abs(envelopeValue - dcOffset);
 
-    if (envelopeValue <= 1)
+    if (signal <= 50) // If the change is tiny, call it silent
     {
-        return -80.0; // Very quiet, return a low dB value
+        return -80.0; 
     }
 
-    // Convert envelope to dB using SparkFun approach with calibration offset
-    float dB = 20 * log10(envelopeValue) + CALIBRATION_OFFSET;
+    float dB = 20 * log10(signal) + CALIBRATION_OFFSET;
     return dB;
 }
 
@@ -96,20 +104,12 @@ bool SoundSensor::isSoundDetected()
 String SoundSensor::getStatus()
 {
     float envelopeValue = readRMSValue();
+    float signal = abs(envelopeValue - dcOffset);
 
-    // Use SparkFun thresholds for status determination
-    if (envelopeValue <= 10)
-    {
-        return "Quiet";
-    }
-    else if (envelopeValue <= 30)
-    {
-        return "Moderate";
-    }
-    else
-    {
-        return "Loud";
-    }
+    // Now we judge based on the CHANGE from the 1960 baseline
+    if (signal < 50)       { return "Quiet"; }
+    else if (signal < 200)  { return "Moderate"; }
+    else                    { return "Loud"; }
 }
 
 void SoundSensor::printDebugInfo()

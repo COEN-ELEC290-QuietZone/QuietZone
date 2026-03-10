@@ -1,10 +1,24 @@
 #include "MQTTClient.h"
 
+// =============================================
+// CHANGE THIS NUMBER BEFORE FLASHING EACH ESP32
+#define SENSOR_NUM 2   // ← 1 for ESP32 #1, change to 2 for ESP32 #2
+// =============================================
+
+#define STRINGIFY(x) #x
+#define TOSTRING(x) STRINGIFY(x)
+
 // Static member definitions
-const char *MQTTClientManager::ssid = "ESP32_Network";
-const char *MQTTClientManager::password = "yourpassword123";
-const char *MQTTClientManager::mqtt_server = "192.168.4.1";
-const char *MQTTClientManager::sensor_id = "esp32_sensor_01";
+//const char *MQTTClientManager::ssid = "ESP32_Network";
+const char *MQTTClientManager::ssid = "BELL197 2.4GHZ";
+//const char *MQTTClientManager::password = "yourpassword123";
+const char *MQTTClientManager::password = "AE77D7C2CE4F";
+//const char *MQTTClientManager::mqtt_server = "192.168.4.1";
+const char *MQTTClientManager::mqtt_server = "192.168.2.173";
+//const char *MQTTClientManager::sensor_id = "esp32_sensor_01";
+const char *MQTTClientManager::sensor_id = "sensor_" TOSTRING(SENSOR_NUM);
+const char *MQTTClientManager::client_id = "ESP32_SoundSensor_" TOSTRING(SENSOR_NUM);
+const char *MQTTClientManager::mqtt_topic = "sensors/sensor_" TOSTRING(SENSOR_NUM) "/sound_data";
 
 MQTTClientManager::MQTTClientManager() : mqttClient(espClient)
 {
@@ -74,12 +88,17 @@ void MQTTClientManager::maintainConnection()
 
 bool MQTTClientManager::publishSoundData(float dbLevel, String status)
 {
-    String payload = "{\"sensor_name\":\"Sensor 1\",\"sensor_id\":\"" + String(sensor_id) + "\",\"db_level\":" + String(dbLevel, 1) + ",\"status\":\"" + status + "\"}";
-    bool published = mqttClient.publish("sensors/esp32/sound_data", payload.c_str());
+    //String payload = "{\"sensor_name\":\"Sensor 1\",\"sensor_id\":\"" + String(sensor_id) + "\",\"db_level\":" + String(dbLevel, 1) + ",\"status\":\"" + status + "\"}";
+    String payload = "{\"sensor_name\":\"Sensor " TOSTRING(SENSOR_NUM) "\","
+                     "\"sensor_id\":\"" + String(sensor_id) + "\","
+                     "\"db_level\":" + String(dbLevel, 1) + ","
+                     "\"status\":\"" + status + "\"}";
+    //bool published = mqttClient.publish("sensors/esp32/sound_data", payload.c_str());
+    bool published = mqttClient.publish(mqtt_topic, payload.c_str());
 
     if (published)
     {
-        Serial.println("[INFO] MQTT publish OK: Sensor 1, " + String(dbLevel, 1) + " dB, Status: " + status);
+        Serial.println("[INFO] MQTT publish OK: " + String(sensor_id) + ", " + String(dbLevel, 1) + " dB, Status: " + status);
     }
     else
     {
