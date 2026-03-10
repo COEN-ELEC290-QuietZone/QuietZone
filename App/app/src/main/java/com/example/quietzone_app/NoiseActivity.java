@@ -20,6 +20,12 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+// Toolbar
+import androidx.appcompat.widget.Toolbar;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.widget.Toast;
+import android.content.Intent;
 
 public class NoiseActivity extends AppCompatActivity {
 
@@ -28,9 +34,9 @@ public class NoiseActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
-
         setContentView(R.layout.activity_noise);
 
         // Edge-to-edge padding
@@ -38,7 +44,21 @@ public class NoiseActivity extends AppCompatActivity {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
+
         });
+
+        // (2) TOOLBAR (Sets the toolbar as the app bar for NoiseActivity)
+        Toolbar myToolbar = (Toolbar) findViewById(R.id.my_toolbar);
+        setSupportActionBar(myToolbar);
+
+        if (getSupportActionBar() != null){
+
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true); //shows left arrow
+            getSupportActionBar().setTitle("Room 2");
+
+
+        }
+
 
         // --- Get references to UI elements ---
         soundText = findViewById(R.id.soundText);
@@ -115,5 +135,45 @@ public class NoiseActivity extends AppCompatActivity {
                 soundText.setText("Database Error: " + databaseError.getMessage());
             }
         });
+    }
+
+    // (3) Toolbar
+
+    //goes back when left arrow pressed
+    @Override
+    public boolean onSupportNavigateUp() {
+        finish();
+        return true;
+    }
+
+    //create menu items in the toolbar
+    @Override
+    public boolean onCreateOptionsMenu(android.view.Menu menu){
+        getMenuInflater().inflate(R.menu.menu_noiseactivity, menu);
+        return true;
+    }
+
+    //what happens when option is clicked
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item){
+        int id = item.getItemId();
+
+        if (id == R.id.action_room1){
+            Toast.makeText(this, "Now viewing Room 1", Toast.LENGTH_SHORT).show();
+            //Click logic here
+            Intent intent = new Intent(NoiseActivity.this, LoginActivity.class);
+            startActivity(intent);
+            return true;
+        }
+
+        if (id == R.id.action_room2){
+            Toast.makeText(this, "Now viewing Room 2", Toast.LENGTH_SHORT).show();
+            //Click logic here
+            Intent intent = new Intent(NoiseActivity.this, NoiseActivity.class);
+            startActivity(intent);
+            return true;
+        }
+
+        return super.onOptionsItemSelected(item);
     }
 }
