@@ -1,8 +1,10 @@
 package com.example.quietzone_app;
 
+import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Log;
+import android.widget.Button;
 import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
@@ -26,6 +28,8 @@ public class NoiseActivity extends AppCompatActivity {
     private ProgressiveGauge gauge;
     private SpeedView speedView;
     private TextView soundText;
+    private Button roomButton1;
+    private Button roomButton2;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,6 +49,19 @@ public class NoiseActivity extends AppCompatActivity {
         soundText = findViewById(R.id.soundText);
         gauge = findViewById(R.id.gauge);
         speedView = findViewById(R.id.speedView);
+        roomButton1 = findViewById(R.id.roomButton1);
+        roomButton2 = findViewById(R.id.roomButton2);
+
+        // --- Set up button click listeners ---
+        roomButton1.setOnClickListener(v -> {
+            Intent intent = new Intent(NoiseActivity.this, LoginActivity.class);
+            startActivity(intent);
+        });
+
+        roomButton2.setOnClickListener(v -> {
+            Intent intent = new Intent(NoiseActivity.this, NoiseActivity.class);
+            startActivity(intent);
+        });
 
         // --- ProgressiveGauge setup ---
         gauge.setMaxSpeed(120);
