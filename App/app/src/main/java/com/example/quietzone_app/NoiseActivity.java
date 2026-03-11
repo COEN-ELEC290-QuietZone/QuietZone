@@ -51,44 +51,4 @@ public class NoiseActivity extends AppCompatActivity {
         finish();
         return true;
     }
-
-    // (3) Toolbar
-
-    //goes back when left arrow pressed
-    @Override
-    public boolean onSupportNavigateUp() {
-        finish();
-        return true;
-    }
-
-    //create menu items in the toolbar
-    @Override
-    public boolean onCreateOptionsMenu(android.view.Menu menu){
-        getMenuInflater().inflate(R.menu.menu_noiseactivity, menu);
-        return true;
-    }
-
-    //what happens when option is clicked
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item){
-        int id = item.getItemId();
-
-        if (id == R.id.action_room1){
-            Toast.makeText(this, "Now viewing Room 1", Toast.LENGTH_SHORT).show();
-            //Click logic here
-            Intent intent = new Intent(NoiseActivity.this, LoginActivity.class);
-            startActivity(intent);
-            return true;
-        }
-
-        if (id == R.id.action_room2){
-            Toast.makeText(this, "Now viewing Room 2", Toast.LENGTH_SHORT).show();
-            //Click logic here
-            Intent intent = new Intent(NoiseActivity.this, NoiseActivity.class);
-            startActivity(intent);
-            return true;
-        }
-
-        return super.onOptionsItemSelected(item);
-    }
 }
