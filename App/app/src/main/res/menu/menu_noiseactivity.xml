@@ -2,8 +2,6 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <!-- Action bar menu items -->
-
     <item
         android:id="@+id/action_room1"
         android:title="Room 1"
@@ -15,3 +13,5 @@
         app:showAsAction="never" />
 
 </menu>
+
+    <!-- (4) Action bar menu items -->
