@@ -14,16 +14,6 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.QuietZone_app">
         <activity
-            android:name=".LoginActivity"
-            android:exported="false"
-            android:parentActivityName=".MainActivity"
-            android:label="Room 1" />
-        <activity
-            android:name=".NoiseActivity"
-            android:exported="false"
-            android:parentActivityName=".MainActivity"
-            android:label="Room 2" />
-        <activity
             android:name=".MainActivity"
             android:exported="true">
             <intent-filter>
