@@ -31,6 +31,12 @@
         <activity
             android:name=".NoiseActivity"
             android:exported="false" />
+        <activity
+            android:name=".Room1Activity"
+            android:exported="false" />
+        <activity
+            android:name=".Room2Activity"
+            android:exported="false" />
     </application>
 
 </manifest>
