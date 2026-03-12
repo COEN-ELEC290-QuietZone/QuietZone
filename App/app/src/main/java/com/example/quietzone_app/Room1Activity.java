@@ -1,6 +1,5 @@
 package com.example.quietzone_app;
 
-import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.TextView;
@@ -40,9 +39,18 @@ public class Room1Activity extends AppCompatActivity {
 
         Toolbar myToolbar = findViewById(R.id.my_toolbar);
         setSupportActionBar(myToolbar);
+        int toolbarTextColor = getResources().getColor(R.color.app_on_primary, getTheme());
+        myToolbar.setTitleTextColor(toolbarTextColor);
+        myToolbar.setSubtitleTextColor(toolbarTextColor);
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
             getSupportActionBar().setTitle("Room 1");
+            if (myToolbar.getNavigationIcon() != null) {
+                myToolbar.getNavigationIcon().setTint(toolbarTextColor);
+            }
+        }
+        if (myToolbar.getOverflowIcon() != null) {
+            myToolbar.getOverflowIcon().setTint(toolbarTextColor);
         }
 
         speedView = findViewById(R.id.speedView);
@@ -90,13 +98,13 @@ public class Room1Activity extends AppCompatActivity {
     private void updateStatus(TextView view, float dB) {
         if (dB < 50) {
             view.setText("Quiet");
-            view.setTextColor(Color.parseColor("#4CAF50"));
+            view.setTextColor(getResources().getColor(R.color.status_quiet, getTheme()));
         } else if (dB < 70) {
             view.setText("Moderate");
-            view.setTextColor(Color.parseColor("#FF9800"));
+            view.setTextColor(getResources().getColor(R.color.status_moderate, getTheme()));
         } else {
             view.setText("Loud");
-            view.setTextColor(Color.parseColor("#F44336"));
+            view.setTextColor(getResources().getColor(R.color.status_loud, getTheme()));
         }
     }
 

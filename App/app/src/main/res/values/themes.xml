@@ -19,6 +19,9 @@
         <item name="colorError">@color/app_error</item>
         <item name="colorOnError">@color/app_on_error</item>
         <item name="android:windowBackground">@color/app_background</item>
+        <item name="android:textColorPrimary">@color/white</item>
+        <item name="android:textColorSecondary">@color/white</item>
+        <item name="android:textColorHint">@color/white</item>
     </style>
 
     <style name="Theme.QuietZone_app" parent="Base.Theme.QuietZone_app" />
