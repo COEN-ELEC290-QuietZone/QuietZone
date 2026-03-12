@@ -1,8 +1,6 @@
 package com.example.quietzone_app;
 
 import android.content.Intent;
-import android.graphics.Color;
-import android.graphics.Typeface;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -28,21 +26,22 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
 public class NoiseActivity extends AppCompatActivity {
 
-    private static final String[] ROOMS = { "Room 1", "Room 2" };
-    private static final Class<?>[] ROOM_ACTIVITIES = { Room1Activity.class, Room2Activity.class };
-    private static final String[] SENSOR_PATHS = {
-            "sound_data/live/sensor_1",
-            "sound_data/live/sensor_2"
-    };
+    private final List<RoomItem> rooms = new ArrayList<>();
+    private final Map<String, RoomItem> roomBySensorKey = new LinkedHashMap<>();
 
-    private final SpeedView[] childSpeedViews = new SpeedView[ROOMS.length];
-    private final TextView[] childSoundTexts = new TextView[ROOMS.length];
-    private final TextView[] childStatusTexts = new TextView[ROOMS.length];
-    private final float[] latestSoundLevels = { Float.NaN, Float.NaN };
-    private final DatabaseReference[] sensorRefs = new DatabaseReference[ROOMS.length];
-    private final ValueEventListener[] sensorListeners = new ValueEventListener[ROOMS.length];
+    private ExpandableListView expandableListView;
+    private RoomExpandableAdapter roomAdapter;
+    private DatabaseReference liveSensorsRef;
+    private ValueEventListener liveSensorsListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -60,79 +59,199 @@ public class NoiseActivity extends AppCompatActivity {
         setSupportActionBar(myToolbar);
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            getSupportActionBar().setTitle("Noise Levels");
         }
 
-        for (int i = 0; i < ROOMS.length; i++) {
-            final int idx = i;
-            sensorRefs[i] = FirebaseDatabase.getInstance().getReference(SENSOR_PATHS[i]);
-            sensorListeners[i] = new ValueEventListener() {
-                @Override
-                public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                    if (!dataSnapshot.exists()) {
-                        if (childSoundTexts[idx] != null) {
-                            childSoundTexts[idx].setText("Waiting...");
-                        }
-                        if (childStatusTexts[idx] != null) {
-                            childStatusTexts[idx].setText("Status: Waiting...");
-                            childStatusTexts[idx].setTextColor(getResources().getColor(R.color.app_on_surface, getTheme()));
-                        }
-                        return;
-                    }
-                    try {
-                        DataSnapshot valueSnapshot = dataSnapshot.child("value");
-                        Object value = valueSnapshot.exists() ? valueSnapshot.getValue() : dataSnapshot.getValue();
-                        if (value != null) {
-                            float soundLevel = Float.parseFloat(value.toString());
-                            latestSoundLevels[idx] = soundLevel;
-                            if (childSoundTexts[idx] != null) {
-                                childSoundTexts[idx].setText(String.format("%.1f dB", soundLevel));
-                            }
-                            if (childSpeedViews[idx] != null) {
-                                childSpeedViews[idx].speedTo(soundLevel);
-                            }
-                            if (childStatusTexts[idx] != null) {
-                                applyStatusText(childStatusTexts[idx], soundLevel);
-                            }
-                        }
-                    } catch (Exception e) {
-                        Log.e("NoiseActivity", "Error parsing sensor_" + (idx + 1), e);
-                        if (childSoundTexts[idx] != null) {
-                            childSoundTexts[idx].setText("Error");
-                        }
-                        if (childStatusTexts[idx] != null) {
-                            childStatusTexts[idx].setText("Status: Error");
-                            childStatusTexts[idx].setTextColor(getResources().getColor(R.color.app_error, getTheme()));
-                        }
-                    }
-                }
+        expandableListView = findViewById(R.id.roomExpandableList);
+        expandableListView.setGroupIndicator(null);
+        roomAdapter = new RoomExpandableAdapter();
+        expandableListView.setAdapter(roomAdapter);
 
-                @Override
-                public void onCancelled(@NonNull DatabaseError error) {
-                    if (childSoundTexts[idx] != null) {
-                        childSoundTexts[idx].setText("Error");
-                    }
-                    if (childStatusTexts[idx] != null) {
-                        childStatusTexts[idx].setText("Status: Error");
-                        childStatusTexts[idx].setTextColor(getResources().getColor(R.color.app_error, getTheme()));
-                    }
-                }
-            };
-            sensorRefs[i].addValueEventListener(sensorListeners[i]);
-        }
+        liveSensorsRef = FirebaseDatabase.getInstance().getReference("sound_data/live");
+        liveSensorsListener = new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                syncRoomsFromDatabase(snapshot);
+            }
 
-        ExpandableListView expandableListView = findViewById(R.id.roomExpandableList);
-        expandableListView.setIndicatorBoundsRelative(dpToPx(16), dpToPx(48));
-        expandableListView.setAdapter(new RoomExpandableAdapter());
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Log.e("NoiseActivity", "Failed loading room list", error.toException());
+            }
+        };
+        liveSensorsRef.addValueEventListener(liveSensorsListener);
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        for (int i = 0; i < sensorRefs.length; i++) {
-            if (sensorRefs[i] != null && sensorListeners[i] != null) {
-                sensorRefs[i].removeEventListener(sensorListeners[i]);
+        if (liveSensorsRef != null && liveSensorsListener != null) {
+            liveSensorsRef.removeEventListener(liveSensorsListener);
+        }
+        for (RoomItem room : rooms) {
+            if (room.sensorRef != null && room.sensorListener != null) {
+                room.sensorRef.removeEventListener(room.sensorListener);
             }
+        }
+    }
+
+    private void syncRoomsFromDatabase(DataSnapshot liveSnapshot) {
+        List<String> sensorKeys = new ArrayList<>();
+        for (DataSnapshot child : liveSnapshot.getChildren()) {
+            String sensorKey = child.getKey();
+            if (sensorKey != null && !sensorKey.trim().isEmpty()) {
+                sensorKeys.add(sensorKey);
+            }
+        }
+
+        Collections.sort(sensorKeys, Comparator.comparingInt(this::extractSensorIndex));
+
+        List<String> keysToRemove = new ArrayList<>();
+        for (String existingKey : roomBySensorKey.keySet()) {
+            if (!sensorKeys.contains(existingKey)) {
+                keysToRemove.add(existingKey);
+            }
+        }
+        for (String removedKey : keysToRemove) {
+            RoomItem removed = roomBySensorKey.remove(removedKey);
+            if (removed != null && removed.sensorRef != null && removed.sensorListener != null) {
+                removed.sensorRef.removeEventListener(removed.sensorListener);
+            }
+        }
+
+        for (String sensorKey : sensorKeys) {
+            if (!roomBySensorKey.containsKey(sensorKey)) {
+                RoomItem room = new RoomItem();
+                room.sensorKey = sensorKey;
+                room.roomName = toRoomName(sensorKey);
+                room.targetActivity = toRoomActivity(sensorKey);
+                room.latestSoundLevel = Float.NaN;
+                roomBySensorKey.put(sensorKey, room);
+                attachSensorListener(room);
+            }
+        }
+
+        rooms.clear();
+        for (String sensorKey : sensorKeys) {
+            RoomItem room = roomBySensorKey.get(sensorKey);
+            if (room != null) {
+                rooms.add(room);
+            }
+        }
+
+        roomAdapter.notifyDataSetChanged();
+    }
+
+    private void attachSensorListener(RoomItem room) {
+        room.sensorRef = FirebaseDatabase.getInstance().getReference("sound_data/live").child(room.sensorKey);
+        room.sensorListener = new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                if (!dataSnapshot.exists()) {
+                    room.latestSoundLevel = Float.NaN;
+                    if (room.soundText != null) {
+                        room.soundText.setText(getString(R.string.room_sound_placeholder));
+                    }
+                    if (room.groupStatusText != null) {
+                        room.groupStatusText.setText(getString(R.string.room_group_status_waiting));
+                        room.groupStatusText.setTextColor(getResources().getColor(R.color.app_on_surface, getTheme()));
+                    }
+                    if (room.statusText != null) {
+                        room.statusText.setText(getString(R.string.room_status_waiting));
+                        room.statusText.setTextColor(getResources().getColor(R.color.app_on_surface, getTheme()));
+                    }
+                    return;
+                }
+
+                try {
+                    DataSnapshot valueSnapshot = dataSnapshot.child("value");
+                    Object value = valueSnapshot.exists() ? valueSnapshot.getValue() : dataSnapshot.getValue();
+                    if (value != null) {
+                        float soundLevel = Float.parseFloat(value.toString());
+                        room.latestSoundLevel = soundLevel;
+                        if (room.soundText != null) {
+                            room.soundText.setText(getString(R.string.room_sound_format, soundLevel));
+                        }
+                        if (room.speedView != null) {
+                            if (Float.isNaN(room.lastDisplayedSpeed)
+                                    || Math.abs(soundLevel - room.lastDisplayedSpeed) > 1.0f) {
+                                room.speedView.speedTo(soundLevel);
+                                room.lastDisplayedSpeed = soundLevel;
+                            }
+                        }
+                        if (room.statusText != null) {
+                            applyStatusText(room.statusText, soundLevel);
+                        }
+                        if (room.groupStatusText != null) {
+                            applyGroupStatusText(room.groupStatusText, soundLevel);
+                        }
+                    }
+                } catch (Exception e) {
+                    Log.e("NoiseActivity", "Error parsing " + room.sensorKey, e);
+                    room.latestSoundLevel = Float.NaN;
+                    if (room.soundText != null) {
+                        room.soundText.setText(getString(R.string.room_sound_placeholder));
+                    }
+                    if (room.groupStatusText != null) {
+                        room.groupStatusText.setText(getString(R.string.room_group_status_error));
+                        room.groupStatusText.setTextColor(getResources().getColor(R.color.app_on_surface, getTheme()));
+                    }
+                    if (room.statusText != null) {
+                        room.statusText.setText(getString(R.string.room_status_error));
+                        room.statusText.setTextColor(getResources().getColor(R.color.white, getTheme()));
+                    }
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                room.latestSoundLevel = Float.NaN;
+                if (room.soundText != null) {
+                    room.soundText.setText(getString(R.string.room_sound_placeholder));
+                }
+                if (room.groupStatusText != null) {
+                    room.groupStatusText.setText(getString(R.string.room_group_status_error));
+                    room.groupStatusText.setTextColor(getResources().getColor(R.color.app_on_surface, getTheme()));
+                }
+                if (room.statusText != null) {
+                    room.statusText.setText(getString(R.string.room_status_error));
+                    room.statusText.setTextColor(getResources().getColor(R.color.white, getTheme()));
+                }
+            }
+        };
+        room.sensorRef.addValueEventListener(room.sensorListener);
+    }
+
+    private String toRoomName(String sensorKey) {
+        int sensorIndex = extractSensorIndex(sensorKey);
+        if (sensorIndex > 0) {
+            return getString(R.string.room_name_format, sensorIndex);
+        }
+        return sensorKey;
+    }
+
+    private Class<?> toRoomActivity(String sensorKey) {
+        switch (sensorKey) {
+            case "sensor_1":
+                return Room1Activity.class;
+            case "sensor_2":
+                return Room2Activity.class;
+            default:
+                return null;
+        }
+    }
+
+    private int extractSensorIndex(String sensorKey) {
+        if (sensorKey == null) {
+            return Integer.MAX_VALUE;
+        }
+        int underscore = sensorKey.lastIndexOf('_');
+        if (underscore < 0 || underscore + 1 >= sensorKey.length()) {
+            return Integer.MAX_VALUE;
+        }
+        try {
+            return Integer.parseInt(sensorKey.substring(underscore + 1));
+        } catch (NumberFormatException ignored) {
+            return Integer.MAX_VALUE;
         }
     }
 
@@ -140,7 +259,7 @@ public class NoiseActivity extends AppCompatActivity {
 
         @Override
         public int getGroupCount() {
-            return ROOMS.length;
+            return rooms.size();
         }
 
         @Override
@@ -150,7 +269,7 @@ public class NoiseActivity extends AppCompatActivity {
 
         @Override
         public Object getGroup(int groupPosition) {
-            return ROOMS[groupPosition];
+            return rooms.get(groupPosition);
         }
 
         @Override
@@ -175,18 +294,35 @@ public class NoiseActivity extends AppCompatActivity {
 
         @Override
         public View getGroupView(int groupPosition, boolean isExpanded, View convertView, ViewGroup parent) {
-            TextView tv = convertView instanceof TextView ? (TextView) convertView : new TextView(NoiseActivity.this);
-            tv.setText(ROOMS[groupPosition]);
-            tv.setTextSize(18);
-            tv.setPadding(dpToPx(56), dpToPx(20), dpToPx(16), dpToPx(20));
-            tv.setTypeface(null, Typeface.BOLD);
-            tv.setTextColor(getResources().getColor(R.color.app_on_surface, getTheme()));
-            return tv;
+            RoomItem room = rooms.get(groupPosition);
+            View view = convertView;
+            if (view == null) {
+                view = LayoutInflater.from(NoiseActivity.this)
+                        .inflate(R.layout.list_item_room_group, parent, false);
+            }
+
+            TextView roomNameTv = view.findViewById(R.id.groupRoomName);
+            TextView groupStatusTv = view.findViewById(R.id.groupRoomStatus);
+
+            int onSurface = getResources().getColor(R.color.app_on_surface, getTheme());
+            roomNameTv.setText(room.roomName);
+            roomNameTv.setTextColor(onSurface);
+            room.groupStatusText = groupStatusTv;
+
+            if (Float.isNaN(room.latestSoundLevel)) {
+                groupStatusTv.setText(getString(R.string.room_group_status_waiting));
+                groupStatusTv.setTextColor(onSurface);
+            } else {
+                applyGroupStatusText(groupStatusTv, room.latestSoundLevel);
+            }
+
+            return view;
         }
 
         @Override
         public View getChildView(int groupPosition, int childPosition, boolean isLastChild,
                 View convertView, ViewGroup parent) {
+            RoomItem room = rooms.get(groupPosition);
             View view = LayoutInflater.from(NoiseActivity.this)
                     .inflate(R.layout.list_item_room_child, parent, false);
 
@@ -198,28 +334,36 @@ public class NoiseActivity extends AppCompatActivity {
             sv.setMaxSpeed(120);
             sv.setUnit("dB");
             int onSurface = getResources().getColor(R.color.app_on_surface, getTheme());
-            sv.setSpeedTextColor(onSurface);
             sv.setTextColor(onSurface);
             sv.setUnitTextColor(onSurface);
             float strokePx = 6 * getResources().getDisplayMetrics().density;
             sv.setSpeedometerWidth(strokePx);
-            sv.setSpeedTextSize(dpToPx(20));
+            sv.setSpeedTextSize(0);
             sv.setUnitTextSize(dpToPx(10));
 
-            childSpeedViews[groupPosition] = sv;
-            childSoundTexts[groupPosition] = soundTv;
-            childStatusTexts[groupPosition] = statusTv;
-                openRoomButton.setOnClickListener(v ->
-                    startActivity(new Intent(NoiseActivity.this, ROOM_ACTIVITIES[groupPosition])));
+            room.speedView = sv;
+            room.soundText = soundTv;
+            room.statusText = statusTv;
+            openRoomButton.setOnClickListener(v -> {
+                if (room.targetActivity != null) {
+                    startActivity(new Intent(NoiseActivity.this, room.targetActivity));
+                }
+            });
+            openRoomButton.setEnabled(room.targetActivity != null);
+            if (room.targetActivity == null) {
+                openRoomButton.setText(R.string.room_button_no_details);
+            }
 
-            float latest = latestSoundLevels[groupPosition];
+            float latest = room.latestSoundLevel;
             if (Float.isNaN(latest)) {
-                soundTv.setText("-- dB");
-                statusTv.setText("Status: Waiting...");
+                soundTv.setText(R.string.room_sound_placeholder);
+                statusTv.setText(R.string.room_status_waiting);
                 statusTv.setTextColor(onSurface);
+                sv.speedTo(0);
             } else {
-                soundTv.setText(String.format("%.1f dB", latest));
+                soundTv.setText(getString(R.string.room_sound_format, latest));
                 sv.speedTo(latest);
+                room.lastDisplayedSpeed = latest;
                 applyStatusText(statusTv, latest);
             }
 
@@ -232,16 +376,43 @@ public class NoiseActivity extends AppCompatActivity {
         }
     }
 
+    private static class RoomItem {
+        String sensorKey;
+        String roomName;
+        Class<?> targetActivity;
+        float latestSoundLevel;
+        float lastDisplayedSpeed = Float.NaN;
+        DatabaseReference sensorRef;
+        ValueEventListener sensorListener;
+        TextView groupStatusText;
+        SpeedView speedView;
+        TextView soundText;
+        TextView statusText;
+    }
+
+    private void applyGroupStatusText(TextView statusView, float dB) {
+        if (dB < 50) {
+            statusView.setText(R.string.room_group_quiet);
+            statusView.setTextColor(getResources().getColor(R.color.status_quiet, getTheme()));
+        } else if (dB < 70) {
+            statusView.setText(R.string.room_group_moderate);
+            statusView.setTextColor(getResources().getColor(R.color.status_moderate, getTheme()));
+        } else {
+            statusView.setText(R.string.room_group_loud);
+            statusView.setTextColor(getResources().getColor(R.color.status_loud, getTheme()));
+        }
+    }
+
     private void applyStatusText(TextView statusView, float dB) {
         if (dB < 50) {
-            statusView.setText("Status: Quiet");
-            statusView.setTextColor(Color.parseColor("#4CAF50"));
+            statusView.setText(R.string.room_status_quiet);
+            statusView.setTextColor(getResources().getColor(R.color.status_quiet, getTheme()));
         } else if (dB < 70) {
-            statusView.setText("Status: Moderate");
-            statusView.setTextColor(Color.parseColor("#FF9800"));
+            statusView.setText(R.string.room_status_moderate);
+            statusView.setTextColor(getResources().getColor(R.color.status_moderate, getTheme()));
         } else {
-            statusView.setText("Status: Loud");
-            statusView.setTextColor(Color.parseColor("#F44336"));
+            statusView.setText(R.string.room_status_loud);
+            statusView.setTextColor(getResources().getColor(R.color.status_loud, getTheme()));
         }
     }
 
