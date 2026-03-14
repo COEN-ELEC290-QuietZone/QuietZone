@@ -1,6 +1,5 @@
 package com.example.quietzone_app;
 
-import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.TextView;
@@ -24,6 +23,7 @@ public class Room2Activity extends AppCompatActivity {
 
     private SpeedView speedView;
     private TextView soundText;
+    private TextView statusText;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -39,17 +39,30 @@ public class Room2Activity extends AppCompatActivity {
 
         Toolbar myToolbar = findViewById(R.id.my_toolbar);
         setSupportActionBar(myToolbar);
+        int toolbarTextColor = getResources().getColor(R.color.app_on_primary, getTheme());
+        myToolbar.setTitleTextColor(toolbarTextColor);
+        myToolbar.setSubtitleTextColor(toolbarTextColor);
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
             getSupportActionBar().setTitle("Room 2");
+            if (myToolbar.getNavigationIcon() != null) {
+                myToolbar.getNavigationIcon().setTint(toolbarTextColor);
+            }
+        }
+        if (myToolbar.getOverflowIcon() != null) {
+            myToolbar.getOverflowIcon().setTint(toolbarTextColor);
         }
 
         speedView = findViewById(R.id.speedView);
         soundText = findViewById(R.id.soundText);
+        statusText = findViewById(R.id.statusText);
 
+        int onSurface = getResources().getColor(R.color.app_on_surface, getTheme());
         speedView.setMaxSpeed(120);
         speedView.setUnit("dB");
-        speedView.setSpeedTextColor(Color.BLACK);
+        speedView.setSpeedTextColor(onSurface);
+        speedView.setTextColor(onSurface);
+        speedView.setUnitTextColor(onSurface);
 
         DatabaseReference room2Ref = FirebaseDatabase.getInstance().getReference("sound_data/live/sensor_2");
         room2Ref.addValueEventListener(new ValueEventListener() {
@@ -67,6 +80,7 @@ public class Room2Activity extends AppCompatActivity {
                         float soundLevel = Float.parseFloat(value.toString());
                         soundText.setText("Sound Level: " + String.format("%.1f", soundLevel) + " dB");
                         speedView.speedTo(soundLevel);
+                        updateStatus(statusText, soundLevel);
                     }
                 } catch (Exception e) {
                     Log.e("Room2Activity", "Error parsing sensor data", e);
@@ -79,6 +93,19 @@ public class Room2Activity extends AppCompatActivity {
                 soundText.setText("Database Error: " + error.getMessage());
             }
         });
+    }
+
+    private void updateStatus(TextView view, float dB) {
+        if (dB < 50) {
+            view.setText("Quiet");
+            view.setTextColor(getResources().getColor(R.color.status_quiet, getTheme()));
+        } else if (dB < 70) {
+            view.setText("Moderate");
+            view.setTextColor(getResources().getColor(R.color.status_moderate, getTheme()));
+        } else {
+            view.setText("Loud");
+            view.setTextColor(getResources().getColor(R.color.status_loud, getTheme()));
+        }
     }
 
     @Override

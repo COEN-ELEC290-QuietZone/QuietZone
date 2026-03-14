@@ -29,9 +29,18 @@ public class LoginActivity extends AppCompatActivity {
 
         Toolbar myToolbar = findViewById(R.id.my_toolbar);
         setSupportActionBar(myToolbar);
+        int toolbarTextColor = getResources().getColor(R.color.app_on_primary, getTheme());
+        myToolbar.setTitleTextColor(toolbarTextColor);
+        myToolbar.setSubtitleTextColor(toolbarTextColor);
 
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            if (myToolbar.getNavigationIcon() != null) {
+                myToolbar.getNavigationIcon().setTint(toolbarTextColor);
+            }
+        }
+        if (myToolbar.getOverflowIcon() != null) {
+            myToolbar.getOverflowIcon().setTint(toolbarTextColor);
         }
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
