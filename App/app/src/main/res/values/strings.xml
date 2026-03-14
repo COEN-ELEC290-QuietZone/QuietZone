@@ -21,4 +21,17 @@
     <string name="room_button_more_info">More Information</string>
     <string name="room_button_no_details">No Details</string>
     <string name="room_sound_format">%1$.1f dB</string>
+    <string name="setup_title">Device Setup</string>
+    <string name="setup_permission_required">Wi-Fi scan permission is required for setup.</string>
+    <string name="setup_wifi_unavailable">Wi-Fi service unavailable on this device.</string>
+    <string name="setup_scan_failed">Scan failed. Showing cached results.</string>
+    <string name="setup_scanning">Scanning setup hotspots...</string>
+    <string name="setup_no_devices">No setup devices found. Move closer and scan again.</string>
+    <string name="setup_found_devices">Found %1$d setup device(s). Tap one to connect.</string>
+    <string name="setup_connecting">Connecting to %1$s...</string>
+    <string name="setup_connected">Connected to %1$s</string>
+    <string name="setup_connect_failed">Could not connect to selected setup network.</string>
+    <string name="setup_connected_toast">Connected to %1$s</string>
+    <string name="setup_esp_endpoint">Send configuration to: http://192.168.4.1/config</string>
+    <string name="setup_pi_endpoint">Send configuration to: http://192.168.4.1/setup</string>
 </resources>
