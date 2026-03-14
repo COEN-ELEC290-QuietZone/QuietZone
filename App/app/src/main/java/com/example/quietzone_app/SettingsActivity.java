@@ -1,5 +1,6 @@
 package com.example.quietzone_app;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.TypedValue;
 import android.view.View;
@@ -44,6 +45,14 @@ public class SettingsActivity extends AppCompatActivity {
         });
 
         applyCalculatedGridTileSize();
+
+        View deviceSetupButton = findViewById(R.id.buttonDeviceSetup);
+        if (deviceSetupButton != null) {
+            deviceSetupButton.setOnClickListener(v -> {
+                Intent intent = new Intent(SettingsActivity.this, DeviceSetupActivity.class);
+                startActivity(intent);
+            });
+        }
     }
 
     private void applyCalculatedGridTileSize() {
