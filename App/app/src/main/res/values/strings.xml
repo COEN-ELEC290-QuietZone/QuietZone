@@ -21,6 +21,10 @@
     <string name="room_button_more_info">More Information</string>
     <string name="room_button_no_details">No Details</string>
     <string name="room_sound_format">%1$.1f dB</string>
+    <string name="room_noise_level_format">%1$s Noise Level</string>
+    <string name="room_sound_level_placeholder">Sound Level: -- dB</string>
+    <string name="room_sound_level_display_format">Sound Level: %1$.1f dB</string>
+    <string name="room_database_error_format">Database Error: %1$s</string>
     <string name="setup_title">Device Setup</string>
     <string name="setup_permission_required">Wi-Fi scan permission is required for setup.</string>
     <string name="setup_wifi_unavailable">Wi-Fi service unavailable on this device.</string>
@@ -34,4 +38,6 @@
     <string name="setup_connected_toast">Connected to %1$s</string>
     <string name="setup_esp_endpoint">Send configuration to: http://192.168.4.1/config</string>
     <string name="setup_pi_endpoint">Send configuration to: http://192.168.4.1/setup</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_settings">Settings</string>
 </resources>
