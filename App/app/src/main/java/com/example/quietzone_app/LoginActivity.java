@@ -1,51 +1,78 @@
 package com.example.quietzone_app;
 
-import android.graphics.Color;
+import android.content.Intent;
 import android.os.Bundle;
-import android.util.Log;
-import android.widget.TextView;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.Toast;
+
+//import android.graphics.Color;
+//import android.os.Bundle;
+//import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
-import androidx.annotation.NonNull;
+//import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
-import com.github.anastr.speedviewlib.ProgressiveGauge;
-import com.github.anastr.speedviewlib.SpeedView;
-import com.github.anastr.speedviewlib.LinearGauge;
-import com.google.firebase.database.DataSnapshot;
-import com.google.firebase.database.DatabaseError;
-import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.ValueEventListener;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException;
+import com.google.firebase.auth.FirebaseAuthUserCollisionException;
+import com.google.firebase.auth.FirebaseAuthWeakPasswordException;
+import com.google.firebase.firestore.FirebaseFirestore;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 // Toolbar
-import androidx.appcompat.widget.Toolbar;
-import android.view.Menu;
-import android.view.MenuItem;
-import android.widget.Toast;
-import android.content.Intent;
+//import androidx.appcompat.widget.Toolbar;
+//import android.view.Menu;
+//import android.view.MenuItem;
+//import android.widget.Toast;
+//import android.content.Intent;
 
 public class LoginActivity extends AppCompatActivity {
 
-    private SpeedView speedView;
-    private TextView soundText;
+    private EditText usernameInput, passwordInput;
+    private Button loginButton;
+
+    private FirebaseAuth mAuth;
+    private FirebaseFirestore db;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        mAuth = FirebaseAuth.getInstance();
+
+        // If already logged in, skip to dashboard
+        if (mAuth.getCurrentUser() != null) {
+            navigateToDashboard();
+            return;
+        }
+
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_login);
 
         Toolbar myToolbar = findViewById(R.id.my_toolbar);
         setSupportActionBar(myToolbar);
+        int toolbarTextColor = getResources().getColor(R.color.app_on_primary, getTheme());
+        myToolbar.setTitleTextColor(toolbarTextColor);
+        myToolbar.setSubtitleTextColor(toolbarTextColor);
 
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            getSupportActionBar().setTitle("Login");
+            if (myToolbar.getNavigationIcon() != null) {
+                myToolbar.getNavigationIcon().setTint(toolbarTextColor);
+            }
+        }
+        if (myToolbar.getOverflowIcon() != null) {
+            myToolbar.getOverflowIcon().setTint(toolbarTextColor);
         }
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
@@ -54,99 +81,96 @@ public class LoginActivity extends AppCompatActivity {
             return insets;
         });
 
-        // (2) TOOLBAR (Sets the toolbar as the app bar for NoiseActivity)
-        Toolbar myToolbar = (Toolbar) findViewById(R.id.my_toolbar);
-        setSupportActionBar(myToolbar);
+        db = FirebaseFirestore.getInstance();
 
-        if (getSupportActionBar() != null) {
+        usernameInput = findViewById(R.id.usernameInput);
+        passwordInput = findViewById(R.id.passwordInput);
+        loginButton   = findViewById(R.id.loginButton);
 
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true); //shows left arrow
-            getSupportActionBar().setTitle("Room 1");
+        // Button attempts login first, falls back to sign up if no account exists
+        loginButton.setOnClickListener(v -> handleAuth());
+    }
+
+    private void handleAuth() {
+        String email    = usernameInput.getText().toString().trim();
+        String password = passwordInput.getText().toString().trim();
+
+        // Basic local validation
+        if (email.isEmpty() || password.isEmpty()) {
+            Toast.makeText(this, "Please fill in all fields.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (password.length() < 6) {
+            Toast.makeText(this, "Password must be at least 6 characters.", Toast.LENGTH_SHORT).show();
+            return;
         }
 
-        // --- Get references to UI elements ---
-        soundText = findViewById(R.id.soundText);
-        speedView = findViewById(R.id.speedView);
-
-        // --- SpeedView setup ---
-        speedView.setMaxSpeed(120);
-        speedView.setUnit("dB");
-        speedView.setSpeedTextColor(Color.BLACK);
-        speedView.speedTo(75f); // dummy value in dB
-
-        // --- Initialize Firebase and listen for live data ---
-        FirebaseDatabase database = FirebaseDatabase.getInstance();
-        DatabaseReference myRef = database.getReference("sound_data/live/sensor_1");
-
-        Log.d("NoiseActivity", "Firebase listener attached to: sound_data/live/sensor_1");
-
-        myRef.addValueEventListener(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                Log.d("NoiseActivity", "onDataChange called. Exists: " + dataSnapshot.exists());
-                if (dataSnapshot.exists()) {
-                    try {
-                        // The data structure is {value: 450.0, timestamp: 177261431970}
-                        // We need to extract the "value" field
-                        DataSnapshot valueSnapshot = dataSnapshot.child("value");
-
-                        if (valueSnapshot.exists()) {
-                            Object value = valueSnapshot.getValue();
-                            Log.d("NoiseActivity", "Raw value: " + value);
-
-                            if (value != null) {
-                                float soundLevel;
-                                if (value instanceof Double) {
-                                    soundLevel = ((Double) value).floatValue();
-                                } else if (value instanceof Long) {
-                                    soundLevel = ((Long) value).floatValue();
-                                } else {
-                                    soundLevel = Float.parseFloat(value.toString());
-                                }
-
-                                Log.d("NoiseActivity", "Parsed sound level: " + soundLevel);
-
-                                // Update TextView
-                                soundText.setText("Sound Level: " + String.format("%.1f", soundLevel) + " dB");
-
-                                // Update gauge
-                                speedView.speedTo(soundLevel);
+        // Try login first
+        mAuth.signInWithEmailAndPassword(email, password)
+                .addOnSuccessListener(authResult -> navigateToDashboard())
+                .addOnFailureListener(e -> {
+                            if (e instanceof FirebaseAuthInvalidCredentialsException) {
+                                // Wrong password or malformed email
+                                handleAuthError(e);
+                            } else {
+                                // No account found — try creating one
+                                registerUser(email, password);
                             }
-                        } else {
-                            // Fallback: try to parse the whole object as a number (for simple value
-                            // structure)
-                            Object value = dataSnapshot.getValue();
-                            Log.d("NoiseActivity", "Raw value (no 'value' field): " + value);
-                            if (value != null) {
-                                float soundLevel = Float.parseFloat(value.toString());
-                                soundText.setText("Sound Level: " + String.format("%.1f", soundLevel) + " dB");
-                                speedView.speedTo(soundLevel);
-                            }
-                        }
-                    } catch (Exception e) {
-                        Log.e("NoiseActivity", "Error parsing data", e);
-                        soundText.setText("Error reading data: " + e.getMessage());
-                    }
-                } else {
-                    Log.w("NoiseActivity", "No data at path sound_data/live/sensor_1");
-                    soundText.setText("Waiting for sensor...");
-                }
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError databaseError) {
-                Log.e("NoiseActivity", "Database error: " + databaseError.getMessage());
-                soundText.setText("Database Error: " + databaseError.getMessage());
-            }
-        });
+                });
     }
 
-    //create menu items in the toolbar
-    @Override
-    public boolean onCreateOptionsMenu(android.view.Menu menu){
-        getMenuInflater().inflate(R.menu.menu_noiseactivity, menu);
-        return true;
+    private void registerUser(String email, String password) {
+        mAuth.createUserWithEmailAndPassword(email, password)
+                .addOnSuccessListener(authResult -> {
+                    String uid = authResult.getUser().getUid();
+                    createFirestoreUserDoc(uid);
+                })
+                .addOnFailureListener(e -> handleAuthError(e));
     }
+
+    private void createFirestoreUserDoc(String uid) {
+        Map<String, Object> userDoc = new HashMap<>();
+        userDoc.put("favourites", new ArrayList<>());
+        userDoc.put("notification_settings", new HashMap<>());
+
+        db.collection("users").document(uid)
+                .set(userDoc)
+                .addOnSuccessListener(unused -> {
+                    // Firestore write confirmed; safe to navigate
+                    navigateToDashboard();
+                })
+                .addOnFailureListener(e -> {
+                    Toast.makeText(this,
+                            "Account created but failed to save user data. Please try again.",
+                            Toast.LENGTH_LONG).show();
+                });
+    }
+
+    private void navigateToDashboard() {
+        Intent intent = new Intent(this, MainActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
+    }
+
+    private void handleAuthError(Exception e) {
+        if (e instanceof FirebaseAuthWeakPasswordException) {
+            Toast.makeText(this, "Password must be at least 6 characters.", Toast.LENGTH_SHORT).show();
+        } else if (e instanceof FirebaseAuthUserCollisionException) {
+            Toast.makeText(this, "An account with this email already exists.", Toast.LENGTH_SHORT).show();
+        } else if (e instanceof FirebaseAuthInvalidCredentialsException) {
+            Toast.makeText(this, "Invalid email or password.", Toast.LENGTH_SHORT).show();
+        } else {
+            Toast.makeText(this, "Authentication failed. Please try again.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    // create menu items in the toolbar
+//    @Override
+//    public boolean onCreateOptionsMenu(android.view.Menu menu) {
+//        getMenuInflater().inflate(R.menu.menu_noiseactivity, menu);
+//        return true;
+//    }
 
     @Override
     public boolean onSupportNavigateUp() {

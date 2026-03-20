@@ -1,3 +1,37 @@
 <resources>
     <string name="app_name">QuietZone_app</string>
+    <string name="settings_heading">Setting</string>
+    <string name="profile_name">Profile Name</string>
+    <string name="profile_avatar_desc">Profile Avatar</string>
+    <string name="noise_levels_title">Noise Levels</string>
+    <string name="room_name_placeholder">Room</string>
+    <string name="room_name_format">Room %1$d</string>
+    <string name="room_group_status_waiting">Waiting</string>
+    <string name="room_group_status_error">Error</string>
+    <string name="room_sound_placeholder">-- dB</string>
+    <string name="room_status_placeholder">Status: --</string>
+    <string name="room_status_waiting">Status: Waiting...</string>
+    <string name="room_status_error">Status: Error</string>
+    <string name="room_status_quiet">Status: Quiet</string>
+    <string name="room_status_moderate">Status: Moderate</string>
+    <string name="room_status_loud">Status: Loud</string>
+    <string name="room_group_quiet">Quiet</string>
+    <string name="room_group_moderate">Moderate</string>
+    <string name="room_group_loud">Loud</string>
+    <string name="room_button_more_info">More Information</string>
+    <string name="room_button_no_details">No Details</string>
+    <string name="room_sound_format">%1$.1f dB</string>
+    <string name="setup_title">Device Setup</string>
+    <string name="setup_permission_required">Wi-Fi scan permission is required for setup.</string>
+    <string name="setup_wifi_unavailable">Wi-Fi service unavailable on this device.</string>
+    <string name="setup_scan_failed">Scan failed. Showing cached results.</string>
+    <string name="setup_scanning">Scanning setup hotspots...</string>
+    <string name="setup_no_devices">No setup devices found. Move closer and scan again.</string>
+    <string name="setup_found_devices">Found %1$d setup device(s). Tap one to connect.</string>
+    <string name="setup_connecting">Connecting to %1$s...</string>
+    <string name="setup_connected">Connected to %1$s</string>
+    <string name="setup_connect_failed">Could not connect to selected setup network.</string>
+    <string name="setup_connected_toast">Connected to %1$s</string>
+    <string name="setup_esp_endpoint">Send configuration to: http://192.168.4.1/config</string>
+    <string name="setup_pi_endpoint">Send configuration to: http://192.168.4.1/setup</string>
 </resources>

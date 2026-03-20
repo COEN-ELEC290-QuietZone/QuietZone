@@ -1,38 +1,18 @@
 /******************************************************************************
  * SoundSensor.cpp
  * Sound detector implementation - ESP32 version
- * Based on SparkFun Sound Detector sample code
- * Byron Jacquot @ SparkFun Electronics
- * February 19, 2014
- * https://github.com/sparkfun/Sound_Detector
- *
- * Adapted for SoundSensor class implementation
+ * MAX9814 Microphone Amplifier
  *
  * Connections:
- * The Sound Detector is connected to the ESP32 as follows:
- * (Sound Detector -> ESP32 pin)
+ * The MAX9814 is connected to the ESP32 as follows:
+ * (MAX9814 -> ESP32 pin)
  * GND → GND
  * VCC → 3.3V
- * Gate → GPIO 4
- * Envelope → GPIO 35 (ADC1_CH0)
+ * OUT → GPIO 35 (ADC1_CH0)
  *
  ******************************************************************************/
 
 #include "SoundSensor.h"
-
-// Hardware connections for SparkFun Sound Detector
-#define PIN_GATE_IN 4 // GPIO4 for gate input
-#define PIN_LED_OUT 2 // GPIO2 for built-in LED
-
-// Static variables for interrupt handling
-static volatile bool soundDetected = false;
-
-// Interrupt service routine
-void IRAM_ATTR soundISR()
-{
-    soundDetected = digitalRead(PIN_GATE_IN);
-    digitalWrite(PIN_LED_OUT, soundDetected);
-}
 
 SoundSensor::SoundSensor() : dcOffset(0.0)
 {
@@ -40,17 +20,10 @@ SoundSensor::SoundSensor() : dcOffset(0.0)
 
 void SoundSensor::begin()
 {
-    // Configure LED pin as output
-    pinMode(PIN_LED_OUT, OUTPUT);
-
-    // Configure gate input for interrupt
-    pinMode(PIN_GATE_IN, INPUT);
-    attachInterrupt(digitalPinToInterrupt(PIN_GATE_IN), soundISR, CHANGE);
-
     // Calibrate DC offset for more accurate readings
     calibrateDCOffset();
 
-    Serial.println("[SoundSensor] SparkFun Sound Detector initialized");
+    Serial.println("[SoundSensor] MAX9814 Microphone initialized");
 }
 
 void SoundSensor::calibrateDCOffset()
@@ -64,45 +37,57 @@ void SoundSensor::calibrateDCOffset()
         delay(1);
     }
 
+    // dcOffset in raw ADC range (0-4095)
     dcOffset = (float)sum / SAMPLES;
     Serial.println("[SoundSensor] DC Offset: " + String(dcOffset, 2));
 }
 
 float SoundSensor::readRMSValue()
 {
-    // Read the envelope output from SparkFun Sound Detector
-    return analogRead(MIC_PIN);
+    // Calculate true RMS of audio signal
+    long sumSquares = 0;
+    int numberOfSamples = 100;
+
+    for (int i = 0; i < numberOfSamples; i++)
+    {
+        float sample = analogRead(MIC_PIN) - dcOffset;
+        sumSquares += sample * sample;
+        delayMicroseconds(100); // Sample at ~10kHz
+    }
+
+    float meanSquare = (float)sumSquares / numberOfSamples;
+    float rms = sqrt(meanSquare);
+    return rms;
 }
 
 float SoundSensor::readSoundLevel()
 {
-    float envelopeValue = readRMSValue();
+    float rmsValue = readRMSValue();
 
-    if (envelopeValue <= 1)
+    if (rmsValue <= 10) // If RMS is very small, call it silent
     {
-        return -80.0; // Very quiet, return a low dB value
+        return -80.0;
     }
 
-    // Convert envelope to dB using SparkFun approach with calibration offset
-    float dB = 20 * log10(envelopeValue) + CALIBRATION_OFFSET;
+    float dB = 20 * log10(rmsValue) + CALIBRATION_OFFSET;
     return dB;
 }
 
 bool SoundSensor::isSoundDetected()
 {
-    return soundDetected;
+    float rmsValue = readRMSValue();
+    return rmsValue > 50; // Threshold for sound detection
 }
 
 String SoundSensor::getStatus()
 {
-    float envelopeValue = readRMSValue();
+    float rmsValue = readRMSValue();
 
-    // Use SparkFun thresholds for status determination
-    if (envelopeValue <= 10)
+    if (rmsValue < 50)
     {
         return "Quiet";
     }
-    else if (envelopeValue <= 30)
+    else if (rmsValue < 150)
     {
         return "Moderate";
     }
@@ -114,16 +99,14 @@ String SoundSensor::getStatus()
 
 void SoundSensor::printDebugInfo()
 {
-    float envelopeValue = readRMSValue();
+    float rmsValue = readRMSValue();
     float dBLevel = readSoundLevel();
     String status = getStatus();
-    bool gateStatus = isSoundDetected();
 
-    Serial.println("=== SparkFun Sound Detector Debug ===");
-    Serial.println("Envelope Value: " + String(envelopeValue));
+    Serial.println("=== MAX9814 Microphone Debug ===");
+    Serial.println("RMS Value: " + String(rmsValue, 2));
     Serial.println("Sound Level: " + String(dBLevel, 1) + " dB");
     Serial.println("Status: " + status);
-    Serial.println("Gate Detection: " + String(gateStatus ? "SOUND" : "QUIET"));
     Serial.println("DC Offset: " + String(dcOffset, 2));
-    Serial.println("=====================================");
+    Serial.println("================================");
 }

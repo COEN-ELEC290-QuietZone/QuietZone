@@ -1,6 +1,10 @@
 package com.example.quietzone_app;
 
+import android.content.Intent;
 import android.os.Bundle;
+import android.util.TypedValue;
+import android.view.View;
+import android.widget.GridLayout;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
@@ -19,10 +23,19 @@ public class SettingsActivity extends AppCompatActivity {
 
         Toolbar myToolbar = findViewById(R.id.my_toolbar);
         setSupportActionBar(myToolbar);
+        int toolbarTextColor = getResources().getColor(R.color.app_on_primary, getTheme());
+        myToolbar.setTitleTextColor(toolbarTextColor);
+        myToolbar.setSubtitleTextColor(toolbarTextColor);
 
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
             getSupportActionBar().setTitle("Settings");
+            if (myToolbar.getNavigationIcon() != null) {
+                myToolbar.getNavigationIcon().setTint(toolbarTextColor);
+            }
+        }
+        if (myToolbar.getOverflowIcon() != null) {
+            myToolbar.getOverflowIcon().setTint(toolbarTextColor);
         }
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
@@ -30,6 +43,67 @@ public class SettingsActivity extends AppCompatActivity {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
+
+        applyCalculatedGridTileSize();
+
+        View deviceSetupButton = findViewById(R.id.buttonDeviceSetup);
+        if (deviceSetupButton != null) {
+            deviceSetupButton.setOnClickListener(v -> {
+                Intent intent = new Intent(SettingsActivity.this, DeviceSetupActivity.class);
+                startActivity(intent);
+            });
+        }
+    }
+
+    private void applyCalculatedGridTileSize() {
+        GridLayout settingsGrid = findViewById(R.id.settingsGrid);
+        if (settingsGrid == null) {
+            return;
+        }
+
+        settingsGrid.post(() -> applySquareTileSize(settingsGrid));
+        settingsGrid.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+            if (right - left != oldRight - oldLeft) {
+                applySquareTileSize(settingsGrid);
+            }
+        });
+    }
+
+    private void applySquareTileSize(GridLayout settingsGrid) {
+        if (settingsGrid.getChildCount() == 0) {
+            return;
+        }
+
+        int availableWidth = settingsGrid.getWidth() - settingsGrid.getPaddingLeft() - settingsGrid.getPaddingRight();
+        if (availableWidth <= 0) {
+            return;
+        }
+
+        View sampleChild = settingsGrid.getChildAt(0);
+        GridLayout.LayoutParams sampleLp = (GridLayout.LayoutParams) sampleChild.getLayoutParams();
+        int horizontalGap = sampleLp.leftMargin + sampleLp.rightMargin;
+        int minTileSize = dpToPx(96);
+        int minCellSize = minTileSize + horizontalGap;
+
+        int columns = Math.max(1, availableWidth / Math.max(1, minCellSize));
+        settingsGrid.setColumnCount(columns);
+
+        int tileSize = Math.max(1, (availableWidth - (columns * horizontalGap)) / columns);
+
+        for (int i = 0; i < settingsGrid.getChildCount(); i++) {
+            View child = settingsGrid.getChildAt(i);
+            GridLayout.LayoutParams lp = (GridLayout.LayoutParams) child.getLayoutParams();
+            lp.width = tileSize;
+            lp.height = tileSize;
+            child.setLayoutParams(lp);
+        }
+    }
+
+    private int dpToPx(int dp) {
+        return Math.round(TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP,
+                dp,
+                getResources().getDisplayMetrics()));
     }
 
     @Override

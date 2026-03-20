@@ -3,6 +3,13 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission
+        android:name="android.permission.NEARBY_WIFI_DEVICES"
+        android:usesPermissionFlags="neverForLocation"
+        tools:targetApi="33" />
 
     <application
         android:allowBackup="true"
@@ -14,27 +21,19 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.QuietZone_app">
         <activity
-            android:name=".LoginActivity"
-            android:exported="false"
-            android:parentActivityName=".MainActivity"
-            android:label="Room 1" />
-        <activity
-            android:name=".NoiseActivity"
-            android:exported="false"
-            android:parentActivityName=".MainActivity"
-            android:label="Room 2" />
-        <activity
             android:name=".MainActivity"
+            android:exported="false" />
+        <activity
+            android:name=".DeviceSetupActivity"
+            android:exported="false" />
+        <activity
+            android:name=".LoginActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity
-            android:name=".LoginActivity"
-            android:exported="false" />
         <activity
             android:name=".SettingsActivity"
             android:exported="false" />

@@ -49,3 +49,8 @@ Hardware/ESP32/**/.vscode/
 
 # Keep gradle wrapper JAR
 !gradle/wrapper/gradle-wrapper.jar
+
+/build
+
+# Firebase config (SENSITIVE - never commit)
+google-services.json

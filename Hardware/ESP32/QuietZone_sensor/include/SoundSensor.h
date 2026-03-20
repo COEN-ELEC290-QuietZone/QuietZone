@@ -9,7 +9,7 @@ class SoundSensor
 private:
     static const int MIC_PIN = 35;                     // AUDIO pin connected to GPIO35 (ADC1)
     static const int SAMPLES = 512;                    // Number of samples for RMS calculation
-    static constexpr float CALIBRATION_OFFSET = -10.0; // Calibration value in dB (adjusted for realistic readings)
+    static constexpr float CALIBRATION_OFFSET = 0.0; // Calibration value in dB (adjusted for realistic readings)
 
     float dcOffset; // Will be calculated dynamically
 

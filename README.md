@@ -53,17 +53,57 @@ This project follows an Agile Scrum methodology with iterative development cycle
 
 ## Team Members
 
-| Name            | Student ID | Role        |
-| --------------- | ---------- | ----------- |
-| Angad Singh     | 4028556    | Team Member |
-| Angad Malhotra  | 40133666   | Team Member |
-| Ethan Lee       | 40207989   | Team Member |
-| Omar Bendjama   | 40281483   | Team Member |
-| Tonny Zhao      | 40283194   | Team Member |
+| Name           | Student ID | Role        |
+| -------------- | ---------- | ----------- |
+| Angad Singh    | 4028556    | Team Member |
+| Angad Malhotra | 40133666   | Team Member |
+| Ethan Lee      | 40207989   | Team Member |
+| Omar Bendjama  | 40281483   | Team Member |
+| Tonny Zhao     | 40283194   | Team Member |
 
 ## Project Repository
 
 **GitHub Repository:** [COEN-ELEC290-QuietZone/QuietZone](https://github.com/COEN-ELEC290-QuietZone/QuietZone)
+
+## Build and Run (Android Emulator)
+
+Use the following commands in PowerShell from the `App` folder:
+
+```powershell
+cd C:\Users\super\Documents\VScodeProject\COEN-ELEC390\QuietZone_project\App
+```
+
+1. Build debug APK
+
+```powershell
+.\gradlew.bat assembleDebug
+```
+
+2. Install on running emulator
+
+```powershell
+.\gradlew.bat installDebug
+```
+
+3. Launch app manually (optional)
+
+```powershell
+adb shell am start -n com.example.quietzone_app/.MainActivity
+```
+
+Useful commands:
+
+```powershell
+# Clean and rebuild
+.\gradlew.bat clean assembleDebug
+
+# List connected devices/emulators
+adb devices
+
+# Reinstall from scratch
+adb uninstall com.example.quietzone_app
+.\gradlew.bat installDebug
+```
 
 ## License
 
