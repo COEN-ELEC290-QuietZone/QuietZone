@@ -21,7 +21,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.QuietZone_app">
         <activity
-            android:name=".MainActivity"
+            android:name=".AuthActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -29,6 +29,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".MainActivity"
+            android:exported="false" />
         <activity
             android:name=".DeviceSetupActivity"
             android:exported="false" />
@@ -42,10 +45,7 @@
             android:name=".NoiseActivity"
             android:exported="false" />
         <activity
-            android:name=".Room1Activity"
-            android:exported="false" />
-        <activity
-            android:name=".Room2Activity"
+            android:name=".RoomActivity"
             android:exported="false" />
     </application>
 

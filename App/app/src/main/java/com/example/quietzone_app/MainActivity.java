@@ -32,8 +32,8 @@ public class MainActivity extends AppCompatActivity {
         noiseButton = findViewById(R.id.NoiseButton);
         settingsButton = findViewById(R.id.SettingsButton);
 
-        // Navigate to LoginActivity
-        loginButton.setOnClickListener(v -> startActivity(new Intent(this, LoginActivity.class)));
+        // Navigate to AuthActivity
+        loginButton.setOnClickListener(v -> startActivity(new Intent(this, AuthActivity.class)));
 
         // Navigate to NoiseActivity (where sensor data is displayed)
         noiseButton.setOnClickListener(v -> startActivity(new Intent(this, NoiseActivity.class)));
