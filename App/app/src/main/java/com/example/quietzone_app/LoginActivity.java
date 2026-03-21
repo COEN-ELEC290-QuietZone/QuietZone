@@ -135,7 +135,7 @@ public class LoginActivity extends AppCompatActivity {
             animateView(confirmPasswordInput, true);
 
             loginButton.setText("Setup");
-            newUserText.setText("Already have an account?");
+            newUserText.setText("Do you already have an account?");
             loginTitle.setText("Setup");
         }
     }
