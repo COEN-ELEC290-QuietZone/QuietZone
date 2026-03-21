@@ -21,6 +21,16 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.QuietZone_app">
         <activity
+            android:name=".ProfileActivity"
+            android:label="Profile"
+            android:parentActivityName=".NoiseActivity" />
+        <activity
+            android:name=".MainActivity"
+            android:exported="false" />
+        <activity
+            android:name=".MainActivity"
+            android:exported="false" />
+        <activity
             android:name=".DeviceSetupActivity"
             android:exported="false" />
         <activity

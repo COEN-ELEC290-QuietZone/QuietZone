@@ -40,11 +40,16 @@ public class SettingsActivity extends AppCompatActivity {
         BottomNavigationView bottomNavigation = findViewById(R.id.bottomNavigation);
         bottomNavigation.setSelectedItemId(R.id.nav_settings);
         bottomNavigation.setOnItemSelectedListener(item -> {
-            if (item.getItemId() == R.id.nav_home) {
+            int id = item.getItemId();
+            if (id == R.id.nav_home) {
                 startActivity(new Intent(SettingsActivity.this, NoiseActivity.class));
                 finish();
                 return true;
-            } else if (item.getItemId() == R.id.nav_settings) {
+            } else if (id == R.id.nav_profile) {
+                startActivity(new Intent(SettingsActivity.this, ProfileActivity.class));
+                finish();
+                return true;
+            } else if (id == R.id.nav_settings) {
                 return true;
             }
             return false;
