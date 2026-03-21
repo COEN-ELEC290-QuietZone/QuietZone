@@ -2,8 +2,11 @@ package com.example.quietzone_app;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.View;
+import android.view.animation.AlphaAnimation;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 
 //import android.graphics.Color;
@@ -38,8 +41,11 @@ import java.util.Map;
 public class LoginActivity extends AppCompatActivity {
 
     private EditText usernameInput, passwordInput;
-    private Button loginButton, signUpButton;
+    private Button loginButton;
+    private EditText confirmPasswordInput;
+    private TextView newUserText, loginTitle;
 
+    private boolean isLoginMode = true;
     private FirebaseAuth mAuth;
     private FirebaseFirestore db;
 
@@ -84,12 +90,55 @@ public class LoginActivity extends AppCompatActivity {
         loginButton = findViewById(R.id.loginButton);
         signUpButton = findViewById(R.id.signUpButton);
 
-        // Button attempts login first, falls back to sign up if no account exists
+        confirmPasswordInput = findViewById(R.id.confirmPassword);
+        newUserText = findViewById(R.id.Newuser);
+        loginTitle = findViewById(R.id.loginTitle); // <-- ONLY ADDITION
+
+        confirmPasswordInput.setVisibility(View.GONE);
+
+        newUserText.setOnClickListener(v -> toggleMode());
+
         loginButton.setOnClickListener(v -> handleAuth());
         signUpButton.setOnClickListener(v -> {
             Intent intent = new Intent(this, SignUpActivity.class);
             startActivity(intent);
         });
+    }
+
+    // NEW: animation helper (unchanged)
+    private void animateView(View view, boolean show) {
+        float from = show ? 0f : 1f;
+        float to = show ? 1f : 0f;
+
+        AlphaAnimation anim = new AlphaAnimation(from, to);
+        anim.setDuration(200);
+        anim.setFillAfter(true);
+
+        view.startAnimation(anim);
+
+        if (show) {
+            view.setVisibility(View.VISIBLE);
+        } else {
+            view.setVisibility(View.GONE);
+        }
+    }
+
+    private void toggleMode() {
+        isLoginMode = !isLoginMode;
+
+        if (isLoginMode) {
+            animateView(confirmPasswordInput, false);
+
+            loginButton.setText("Login");
+            newUserText.setText("Sign Up");
+            loginTitle.setText("Login");
+        } else {
+            animateView(confirmPasswordInput, true);
+
+            loginButton.setText("Setup");
+            newUserText.setText("Do you already have an account?");
+            loginTitle.setText("Setup");
+        }
     }
 
     private void handleAuth() {
@@ -106,18 +155,24 @@ public class LoginActivity extends AppCompatActivity {
             return;
         }
 
-        // Try login first
-        mAuth.signInWithEmailAndPassword(email, password)
-                .addOnSuccessListener(authResult -> navigateToDashboard())
-                .addOnFailureListener(e -> {
-                    if (e instanceof FirebaseAuthInvalidCredentialsException) {
-                        // Wrong password or malformed email
-                        handleAuthError(e);
-                    } else {
-                        // No account found — try creating one
-                        registerUser(email, password);
-                    }
-                });
+        if (isLoginMode) {
+
+            // Try login first
+            mAuth.signInWithEmailAndPassword(email, password)
+                    .addOnSuccessListener(authResult -> navigateToDashboard())
+                    .addOnFailureListener(e -> handleAuthError(e));
+
+        } else {
+
+            String confirmPassword = confirmPasswordInput.getText().toString().trim();
+
+            if (!password.equals(confirmPassword)) {
+                Toast.makeText(this, "Passwords do not match.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            registerUser(email, password);
+        }
     }
 
     private void registerUser(String email, String password) {
@@ -136,10 +191,7 @@ public class LoginActivity extends AppCompatActivity {
 
         db.collection("users").document(uid)
                 .set(userDoc)
-                .addOnSuccessListener(unused -> {
-                    // Firestore write confirmed; safe to navigate
-                    navigateToDashboard();
-                })
+                .addOnSuccessListener(unused -> navigateToDashboard())
                 .addOnFailureListener(e -> {
                     Toast.makeText(this,
                             "Account created but failed to save user data. Please try again.",
@@ -166,11 +218,9 @@ public class LoginActivity extends AppCompatActivity {
         }
     }
 
-    // create menu items in the toolbar
-    // @Override
-    // public boolean onCreateOptionsMenu(android.view.Menu menu) {
-    // getMenuInflater().inflate(R.menu.menu_noiseactivity, menu);
-    // return true;
-    // }
-
+    @Override
+    public boolean onSupportNavigateUp() {
+        finish();
+        return true;
+    }
 }
