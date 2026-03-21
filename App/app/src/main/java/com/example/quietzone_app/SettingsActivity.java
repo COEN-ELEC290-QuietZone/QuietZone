@@ -13,6 +13,8 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.google.android.material.bottomnavigation.BottomNavigationView;
+
 public class SettingsActivity extends AppCompatActivity {
 
     @Override
@@ -28,15 +30,25 @@ public class SettingsActivity extends AppCompatActivity {
         myToolbar.setSubtitleTextColor(toolbarTextColor);
 
         if (getSupportActionBar() != null) {
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            getSupportActionBar().setDisplayHomeAsUpEnabled(false);
             getSupportActionBar().setTitle("Settings");
-            if (myToolbar.getNavigationIcon() != null) {
-                myToolbar.getNavigationIcon().setTint(toolbarTextColor);
-            }
         }
         if (myToolbar.getOverflowIcon() != null) {
             myToolbar.getOverflowIcon().setTint(toolbarTextColor);
         }
+
+        BottomNavigationView bottomNavigation = findViewById(R.id.bottomNavigation);
+        bottomNavigation.setSelectedItemId(R.id.nav_settings);
+        bottomNavigation.setOnItemSelectedListener(item -> {
+            if (item.getItemId() == R.id.nav_home) {
+                startActivity(new Intent(SettingsActivity.this, NoiseActivity.class));
+                finish();
+                return true;
+            } else if (item.getItemId() == R.id.nav_settings) {
+                return true;
+            }
+            return false;
+        });
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
@@ -47,11 +59,21 @@ public class SettingsActivity extends AppCompatActivity {
         applyCalculatedGridTileSize();
 
         View deviceSetupButton = findViewById(R.id.buttonDeviceSetup);
+        View logoutButton = findViewById(R.id.button10);
+
+        if (deviceSetupButton != null && !SessionState.isAdmin(this)) {
+            deviceSetupButton.setVisibility(View.GONE);
+        }
+
         if (deviceSetupButton != null) {
             deviceSetupButton.setOnClickListener(v -> {
                 Intent intent = new Intent(SettingsActivity.this, DeviceSetupActivity.class);
                 startActivity(intent);
             });
+        }
+
+        if (logoutButton != null) {
+            logoutButton.setOnClickListener(v -> LogoutManager.performLogout(SettingsActivity.this));
         }
     }
 

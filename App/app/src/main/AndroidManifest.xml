@@ -24,7 +24,13 @@
             android:name=".MainActivity"
             android:exported="false" />
         <activity
+            android:name=".MainActivity"
+            android:exported="false" />
+        <activity
             android:name=".DeviceSetupActivity"
+            android:exported="false" />
+        <activity
+            android:name=".SignUpActivity"
             android:exported="false" />
         <activity
             android:name=".LoginActivity"
@@ -41,10 +47,7 @@
             android:name=".NoiseActivity"
             android:exported="false" />
         <activity
-            android:name=".Room1Activity"
-            android:exported="false" />
-        <activity
-            android:name=".Room2Activity"
+            android:name=".RoomActivity"
             android:exported="false" />
     </application>
 

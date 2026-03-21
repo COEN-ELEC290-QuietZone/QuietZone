@@ -10,6 +10,7 @@ import android.widget.BaseExpandableListAdapter;
 import android.widget.Button;
 import android.widget.ExpandableListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
@@ -20,6 +21,7 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.github.anastr.speedviewlib.SpeedView;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -42,6 +44,7 @@ public class NoiseActivity extends AppCompatActivity {
     private RoomExpandableAdapter roomAdapter;
     private DatabaseReference liveSensorsRef;
     private ValueEventListener liveSensorsListener;
+    private FirebaseListenerRegistry.ListenerHandle liveSensorsHandle;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -58,8 +61,19 @@ public class NoiseActivity extends AppCompatActivity {
         Toolbar myToolbar = findViewById(R.id.my_toolbar);
         setSupportActionBar(myToolbar);
         if (getSupportActionBar() != null) {
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            getSupportActionBar().setDisplayHomeAsUpEnabled(false);
         }
+
+        BottomNavigationView bottomNavigation = findViewById(R.id.bottomNavigation);
+        bottomNavigation.setOnItemSelectedListener(item -> {
+            if (item.getItemId() == R.id.nav_home) {
+                return true;
+            } else if (item.getItemId() == R.id.nav_settings) {
+                startActivity(new Intent(NoiseActivity.this, SettingsActivity.class));
+                return true;
+            }
+            return false;
+        });
 
         expandableListView = findViewById(R.id.roomExpandableList);
         expandableListView.setGroupIndicator(null);
@@ -79,16 +93,23 @@ public class NoiseActivity extends AppCompatActivity {
             }
         };
         liveSensorsRef.addValueEventListener(liveSensorsListener);
+        liveSensorsHandle = FirebaseListenerRegistry.register(liveSensorsRef, liveSensorsListener);
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (liveSensorsRef != null && liveSensorsListener != null) {
+        if (liveSensorsHandle != null) {
+            liveSensorsHandle.detachAndUnregister();
+            liveSensorsHandle = null;
+        } else if (liveSensorsRef != null && liveSensorsListener != null) {
             liveSensorsRef.removeEventListener(liveSensorsListener);
         }
         for (RoomItem room : rooms) {
-            if (room.sensorRef != null && room.sensorListener != null) {
+            if (room.sensorHandle != null) {
+                room.sensorHandle.detachAndUnregister();
+                room.sensorHandle = null;
+            } else if (room.sensorRef != null && room.sensorListener != null) {
                 room.sensorRef.removeEventListener(room.sensorListener);
             }
         }
@@ -113,7 +134,10 @@ public class NoiseActivity extends AppCompatActivity {
         }
         for (String removedKey : keysToRemove) {
             RoomItem removed = roomBySensorKey.remove(removedKey);
-            if (removed != null && removed.sensorRef != null && removed.sensorListener != null) {
+            if (removed != null && removed.sensorHandle != null) {
+                removed.sensorHandle.detachAndUnregister();
+                removed.sensorHandle = null;
+            } else if (removed != null && removed.sensorRef != null && removed.sensorListener != null) {
                 removed.sensorRef.removeEventListener(removed.sensorListener);
             }
         }
@@ -123,7 +147,6 @@ public class NoiseActivity extends AppCompatActivity {
                 RoomItem room = new RoomItem();
                 room.sensorKey = sensorKey;
                 room.roomName = toRoomName(sensorKey);
-                room.targetActivity = toRoomActivity(sensorKey);
                 room.latestSoundLevel = Float.NaN;
                 roomBySensorKey.put(sensorKey, room);
                 attachSensorListener(room);
@@ -219,6 +242,7 @@ public class NoiseActivity extends AppCompatActivity {
             }
         };
         room.sensorRef.addValueEventListener(room.sensorListener);
+        room.sensorHandle = FirebaseListenerRegistry.register(room.sensorRef, room.sensorListener);
     }
 
     private String toRoomName(String sensorKey) {
@@ -227,17 +251,6 @@ public class NoiseActivity extends AppCompatActivity {
             return getString(R.string.room_name_format, sensorIndex);
         }
         return sensorKey;
-    }
-
-    private Class<?> toRoomActivity(String sensorKey) {
-        switch (sensorKey) {
-            case "sensor_1":
-                return Room1Activity.class;
-            case "sensor_2":
-                return Room2Activity.class;
-            default:
-                return null;
-        }
     }
 
     private int extractSensorIndex(String sensorKey) {
@@ -345,14 +358,13 @@ public class NoiseActivity extends AppCompatActivity {
             room.soundText = soundTv;
             room.statusText = statusTv;
             openRoomButton.setOnClickListener(v -> {
-                if (room.targetActivity != null) {
-                    startActivity(new Intent(NoiseActivity.this, room.targetActivity));
-                }
+                Intent roomIntent = new Intent(NoiseActivity.this, RoomActivity.class);
+                roomIntent.putExtra(RoomActivity.EXTRA_SENSOR_KEY, room.sensorKey);
+                roomIntent.putExtra(RoomActivity.EXTRA_ROOM_NAME, room.roomName);
+                startActivity(roomIntent);
             });
-            openRoomButton.setEnabled(room.targetActivity != null);
-            if (room.targetActivity == null) {
-                openRoomButton.setText(R.string.room_button_no_details);
-            }
+            openRoomButton.setEnabled(true);
+            openRoomButton.setText(R.string.room_button_more_info);
 
             float latest = room.latestSoundLevel;
             if (Float.isNaN(latest)) {
@@ -379,11 +391,11 @@ public class NoiseActivity extends AppCompatActivity {
     private static class RoomItem {
         String sensorKey;
         String roomName;
-        Class<?> targetActivity;
         float latestSoundLevel;
         float lastDisplayedSpeed = Float.NaN;
         DatabaseReference sensorRef;
         ValueEventListener sensorListener;
+        FirebaseListenerRegistry.ListenerHandle sensorHandle;
         TextView groupStatusText;
         SpeedView speedView;
         TextView soundText;
@@ -418,6 +430,21 @@ public class NoiseActivity extends AppCompatActivity {
 
     private int dpToPx(int dp) {
         return Math.round(dp * getResources().getDisplayMetrics().density);
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(android.view.Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_noiseactivity, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(android.view.MenuItem item) {
+        if (item.getItemId() == R.id.action_add) {
+            Toast.makeText(this, "Add device", Toast.LENGTH_SHORT).show();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
     }
 
     @Override
