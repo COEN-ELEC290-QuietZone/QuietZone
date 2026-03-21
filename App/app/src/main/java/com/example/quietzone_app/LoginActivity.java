@@ -88,7 +88,6 @@ public class LoginActivity extends AppCompatActivity {
         usernameInput = findViewById(R.id.usernameInput);
         passwordInput = findViewById(R.id.passwordInput);
         loginButton = findViewById(R.id.loginButton);
-        signUpButton = findViewById(R.id.signUpButton);
 
         confirmPasswordInput = findViewById(R.id.confirmPassword);
         newUserText = findViewById(R.id.Newuser);
@@ -99,10 +98,6 @@ public class LoginActivity extends AppCompatActivity {
         newUserText.setOnClickListener(v -> toggleMode());
 
         loginButton.setOnClickListener(v -> handleAuth());
-        signUpButton.setOnClickListener(v -> {
-            Intent intent = new Intent(this, SignUpActivity.class);
-            startActivity(intent);
-        });
     }
 
     // NEW: animation helper (unchanged)
@@ -130,7 +125,7 @@ public class LoginActivity extends AppCompatActivity {
             animateView(confirmPasswordInput, false);
 
             loginButton.setText("Login");
-            newUserText.setText("Sign Up");
+            newUserText.setText("New User?");
             loginTitle.setText("Login");
         } else {
             animateView(confirmPasswordInput, true);

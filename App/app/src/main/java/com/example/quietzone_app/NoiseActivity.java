@@ -197,7 +197,7 @@ public class NoiseActivity extends AppCompatActivity {
                         if (room.speedView != null) {
                             if (Float.isNaN(room.lastDisplayedSpeed)
                                     || Math.abs(soundLevel - room.lastDisplayedSpeed) > 1.0f) {
-                                room.speedView.speedTo(soundLevel);
+                                updateSpeedometerInstant(room.speedView, soundLevel);
                                 room.lastDisplayedSpeed = soundLevel;
                             }
                         }
@@ -353,6 +353,7 @@ public class NoiseActivity extends AppCompatActivity {
             sv.setSpeedometerWidth(strokePx);
             sv.setSpeedTextSize(0);
             sv.setUnitTextSize(dpToPx(10));
+            sv.setWithTremble(false);
 
             room.speedView = sv;
             room.soundText = soundTv;
@@ -371,10 +372,10 @@ public class NoiseActivity extends AppCompatActivity {
                 soundTv.setText(R.string.room_sound_placeholder);
                 statusTv.setText(R.string.room_status_waiting);
                 statusTv.setTextColor(onSurface);
-                sv.speedTo(0);
+                updateSpeedometerInstant(sv, 0f);
             } else {
                 soundTv.setText(getString(R.string.room_sound_format, latest));
-                sv.speedTo(latest);
+                updateSpeedometerInstant(sv, latest);
                 room.lastDisplayedSpeed = latest;
                 applyStatusText(statusTv, latest);
             }
@@ -430,6 +431,11 @@ public class NoiseActivity extends AppCompatActivity {
 
     private int dpToPx(int dp) {
         return Math.round(dp * getResources().getDisplayMetrics().density);
+    }
+
+    private void updateSpeedometerInstant(SpeedView speedView, float level) {
+        float clampedLevel = Math.max(0f, Math.min(level, speedView.getMaxSpeed()));
+        speedView.speedTo(clampedLevel, 0);
     }
 
     @Override
