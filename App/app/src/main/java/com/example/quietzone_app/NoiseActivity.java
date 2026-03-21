@@ -75,6 +75,8 @@ public class NoiseActivity extends AppCompatActivity {
             return false;
         });
 
+        setupNavigation();
+
         expandableListView = findViewById(R.id.roomExpandableList);
         expandableListView.setGroupIndicator(null);
         roomAdapter = new RoomExpandableAdapter();
@@ -94,6 +96,23 @@ public class NoiseActivity extends AppCompatActivity {
         };
         liveSensorsRef.addValueEventListener(liveSensorsListener);
         liveSensorsHandle = FirebaseListenerRegistry.register(liveSensorsRef, liveSensorsListener);
+    }
+
+    private void setupNavigation() {
+        BottomNavigationView bottomNav = findViewById(R.id.bottomNavigation);
+        bottomNav.setOnItemSelectedListener(item -> {
+            int id = item.getItemId();
+            if (id == R.id.nav_profile) {
+                startActivity(new Intent(this, ProfileActivity.class));
+                return true;
+            }   else if (id == R.id.nav_settings) {
+                startActivity(new Intent(this, SettingsActivity.class));
+                return true;
+            }
+            return id == R.id.nav_home;
+        });
+
+
     }
 
     @Override
