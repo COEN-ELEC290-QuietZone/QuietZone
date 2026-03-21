@@ -24,6 +24,10 @@
     <string name="room_noise_level_format">%1$s Noise Level</string>
     <string name="room_sound_level_placeholder">Sound Level: -- dB</string>
     <string name="room_sound_level_display_format">Sound Level: %1$.1f dB</string>
+    <string name="room_recent_readings">Recent Readings (Newest First)</string>
+    <string name="room_table_time">Time</string>
+    <string name="room_table_db">dB</string>
+    <string name="room_table_status">Status</string>
     <string name="room_database_error_format">Database Error: %1$s</string>
     <string name="setup_title">Device Setup</string>
     <string name="setup_permission_required">Wi-Fi scan permission is required for setup.</string>
