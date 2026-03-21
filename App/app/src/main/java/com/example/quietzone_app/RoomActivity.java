@@ -19,23 +19,41 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
-public class Room2Activity extends AppCompatActivity {
+public class RoomActivity extends AppCompatActivity {
+
+    public static final String EXTRA_SENSOR_KEY = "extra_sensor_key";
+    public static final String EXTRA_ROOM_NAME = "extra_room_name";
 
     private SpeedView speedView;
+    private TextView speedLabel;
     private TextView soundText;
     private TextView statusText;
+
+    private DatabaseReference roomRef;
+    private ValueEventListener roomListener;
+    private FirebaseListenerRegistry.ListenerHandle roomListenerHandle;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
-        setContentView(R.layout.room2);
+        setContentView(R.layout.room_template);
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
+
+        String sensorKey = getIntent().getStringExtra(EXTRA_SENSOR_KEY);
+        if (sensorKey == null || sensorKey.trim().isEmpty()) {
+            sensorKey = "sensor_1";
+        }
+
+        String roomName = getIntent().getStringExtra(EXTRA_ROOM_NAME);
+        if (roomName == null || roomName.trim().isEmpty()) {
+            roomName = getString(R.string.room_name_placeholder);
+        }
 
         Toolbar myToolbar = findViewById(R.id.my_toolbar);
         setSupportActionBar(myToolbar);
@@ -44,7 +62,7 @@ public class Room2Activity extends AppCompatActivity {
         myToolbar.setSubtitleTextColor(toolbarTextColor);
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            getSupportActionBar().setTitle("Room 2");
+            getSupportActionBar().setTitle(roomName);
             if (myToolbar.getNavigationIcon() != null) {
                 myToolbar.getNavigationIcon().setTint(toolbarTextColor);
             }
@@ -54,8 +72,11 @@ public class Room2Activity extends AppCompatActivity {
         }
 
         speedView = findViewById(R.id.speedView);
+        speedLabel = findViewById(R.id.speedLabel);
         soundText = findViewById(R.id.soundText);
         statusText = findViewById(R.id.statusText);
+
+        speedLabel.setText(getString(R.string.room_noise_level_format, roomName));
 
         int onSurface = getResources().getColor(R.color.app_on_surface, getTheme());
         speedView.setMaxSpeed(120);
@@ -64,12 +85,12 @@ public class Room2Activity extends AppCompatActivity {
         speedView.setTextColor(onSurface);
         speedView.setUnitTextColor(onSurface);
 
-        DatabaseReference room2Ref = FirebaseDatabase.getInstance().getReference("sound_data/live/sensor_2");
-        room2Ref.addValueEventListener(new ValueEventListener() {
+        roomRef = FirebaseDatabase.getInstance().getReference("sound_data/live").child(sensorKey);
+        roomListener = new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 if (!dataSnapshot.exists()) {
-                    soundText.setText("Waiting for sensor...");
+                    soundText.setText(getString(R.string.room_status_waiting));
                     return;
                 }
 
@@ -78,32 +99,45 @@ public class Room2Activity extends AppCompatActivity {
                     Object value = valueSnapshot.exists() ? valueSnapshot.getValue() : dataSnapshot.getValue();
                     if (value != null) {
                         float soundLevel = Float.parseFloat(value.toString());
-                        soundText.setText("Sound Level: " + String.format("%.1f", soundLevel) + " dB");
+                        soundText.setText(getString(R.string.room_sound_level_display_format, soundLevel));
                         speedView.speedTo(soundLevel);
                         updateStatus(statusText, soundLevel);
                     }
                 } catch (Exception e) {
-                    Log.e("Room2Activity", "Error parsing sensor data", e);
-                    soundText.setText("Error reading data");
+                    Log.e("RoomActivity", "Error parsing sensor data", e);
+                    soundText.setText(getString(R.string.room_status_error));
                 }
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-                soundText.setText("Database Error: " + error.getMessage());
+                soundText.setText(getString(R.string.room_database_error_format, error.getMessage()));
             }
-        });
+        };
+        roomRef.addValueEventListener(roomListener);
+        roomListenerHandle = FirebaseListenerRegistry.register(roomRef, roomListener);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (roomListenerHandle != null) {
+            roomListenerHandle.detachAndUnregister();
+            roomListenerHandle = null;
+        } else if (roomRef != null && roomListener != null) {
+            roomRef.removeEventListener(roomListener);
+        }
     }
 
     private void updateStatus(TextView view, float dB) {
         if (dB < 50) {
-            view.setText("Quiet");
+            view.setText(R.string.room_group_quiet);
             view.setTextColor(getResources().getColor(R.color.status_quiet, getTheme()));
         } else if (dB < 70) {
-            view.setText("Moderate");
+            view.setText(R.string.room_group_moderate);
             view.setTextColor(getResources().getColor(R.color.status_moderate, getTheme()));
         } else {
-            view.setText("Loud");
+            view.setText(R.string.room_group_loud);
             view.setTextColor(getResources().getColor(R.color.status_loud, getTheme()));
         }
     }

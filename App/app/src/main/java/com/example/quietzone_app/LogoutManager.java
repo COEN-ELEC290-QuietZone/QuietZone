@@ -1,0 +1,23 @@
+package com.example.quietzone_app;
+
+import android.app.Activity;
+import android.content.Intent;
+
+import com.google.firebase.auth.FirebaseAuth;
+
+public final class LogoutManager {
+
+    private LogoutManager() {
+    }
+
+    public static void performLogout(Activity activity) {
+        FirebaseListenerRegistry.clearAll();
+        FirebaseAuth.getInstance().signOut();
+        SessionState.clear(activity);
+
+        Intent intent = new Intent(activity, LoginActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        activity.startActivity(intent);
+        activity.finish();
+    }
+}
