@@ -38,11 +38,10 @@ import java.util.Map;
 public class LoginActivity extends AppCompatActivity {
 
     private EditText usernameInput, passwordInput;
-    private Button loginButton;
+    private Button loginButton, signUpButton;
 
     private FirebaseAuth mAuth;
     private FirebaseFirestore db;
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,10 +65,7 @@ public class LoginActivity extends AppCompatActivity {
         myToolbar.setSubtitleTextColor(toolbarTextColor);
 
         if (getSupportActionBar() != null) {
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            if (myToolbar.getNavigationIcon() != null) {
-                myToolbar.getNavigationIcon().setTint(toolbarTextColor);
-            }
+            getSupportActionBar().setTitle(getString(R.string.login_button));
         }
         if (myToolbar.getOverflowIcon() != null) {
             myToolbar.getOverflowIcon().setTint(toolbarTextColor);
@@ -85,14 +81,19 @@ public class LoginActivity extends AppCompatActivity {
 
         usernameInput = findViewById(R.id.usernameInput);
         passwordInput = findViewById(R.id.passwordInput);
-        loginButton   = findViewById(R.id.loginButton);
+        loginButton = findViewById(R.id.loginButton);
+        signUpButton = findViewById(R.id.signUpButton);
 
         // Button attempts login first, falls back to sign up if no account exists
         loginButton.setOnClickListener(v -> handleAuth());
+        signUpButton.setOnClickListener(v -> {
+            Intent intent = new Intent(this, SignUpActivity.class);
+            startActivity(intent);
+        });
     }
 
     private void handleAuth() {
-        String email    = usernameInput.getText().toString().trim();
+        String email = usernameInput.getText().toString().trim();
         String password = passwordInput.getText().toString().trim();
 
         // Basic local validation
@@ -109,13 +110,13 @@ public class LoginActivity extends AppCompatActivity {
         mAuth.signInWithEmailAndPassword(email, password)
                 .addOnSuccessListener(authResult -> navigateToDashboard())
                 .addOnFailureListener(e -> {
-                            if (e instanceof FirebaseAuthInvalidCredentialsException) {
-                                // Wrong password or malformed email
-                                handleAuthError(e);
-                            } else {
-                                // No account found — try creating one
-                                registerUser(email, password);
-                            }
+                    if (e instanceof FirebaseAuthInvalidCredentialsException) {
+                        // Wrong password or malformed email
+                        handleAuthError(e);
+                    } else {
+                        // No account found — try creating one
+                        registerUser(email, password);
+                    }
                 });
     }
 
@@ -147,7 +148,7 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void navigateToDashboard() {
-        Intent intent = new Intent(this, MainActivity.class);
+        Intent intent = new Intent(this, NoiseActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();
@@ -166,15 +167,10 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     // create menu items in the toolbar
-//    @Override
-//    public boolean onCreateOptionsMenu(android.view.Menu menu) {
-//        getMenuInflater().inflate(R.menu.menu_noiseactivity, menu);
-//        return true;
-//    }
+    // @Override
+    // public boolean onCreateOptionsMenu(android.view.Menu menu) {
+    // getMenuInflater().inflate(R.menu.menu_noiseactivity, menu);
+    // return true;
+    // }
 
-    @Override
-    public boolean onSupportNavigateUp() {
-        finish();
-        return true;
-    }
 }
