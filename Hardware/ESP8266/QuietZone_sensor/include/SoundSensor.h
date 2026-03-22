@@ -16,7 +16,7 @@ private:
     static constexpr float VOLTS_PER_COUNT = ADC_VREF / ADC_RESOLUTION; // 0.00322V
     // MAX9814 sensitivity: -37 dBV/Pa (output voltage for 1 Pascal pressure)
     // Reference: 1V (dBV scale) or ~0.0045V equivalent (20 µPa standard)
-    static constexpr float MAX9814_SENSITIVITY_DB = -37.0f; // dBV/Pa
+    static constexpr float MAX9814_SENSITIVITY_DB = 20.0f; // dBV/Pa
     static constexpr float CALIBRATION_OFFSET = 94.0f;      // 94 dB = reference adjustment
 
     float dcOffset;

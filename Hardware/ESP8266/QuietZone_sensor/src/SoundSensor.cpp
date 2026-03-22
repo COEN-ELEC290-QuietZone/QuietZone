@@ -45,10 +45,10 @@ float SoundSensor::readSoundLevel()
 {
     float rmsValue = readRMSValue();
 
-    if (rmsValue <= 3.0f)
-    {
-        return -80.0f;
-    }
+    // if (rmsValue <= 3.0f)
+    // {
+    //     return -80.0f;
+    // }
 
     // Convert RMS ADC counts to voltage
     float rmsVolts = rmsValue * VOLTS_PER_COUNT;
