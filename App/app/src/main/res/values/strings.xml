@@ -24,6 +24,9 @@
     <string name="room_noise_level_format">%1$s Noise Level</string>
     <string name="room_sound_level_placeholder">Sound Level: -- dB</string>
     <string name="room_sound_level_display_format">Sound Level: %1$.1f dB</string>
+    <string name="room_chart_loading">Loading...</string>
+    <string name="room_chart_no_data">No readings yet</string>
+    <string name="room_chart_range_format">%1$s - %2$s</string>
     <string name="room_recent_readings">Recent Readings (Newest First)</string>
     <string name="room_table_time">Time</string>
     <string name="room_table_db">dB</string>

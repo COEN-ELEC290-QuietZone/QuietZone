@@ -12,20 +12,22 @@ import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
-import com.github.mikephil.charting.charts.LineChart;
+import com.github.mikephil.charting.charts.BarChart;
 import com.github.mikephil.charting.components.Description;
 import com.github.mikephil.charting.components.Legend;
 import com.github.mikephil.charting.components.XAxis;
-import com.github.mikephil.charting.data.Entry;
-import com.github.mikephil.charting.data.LineData;
-import com.github.mikephil.charting.data.LineDataSet;
+import com.github.mikephil.charting.data.BarData;
+import com.github.mikephil.charting.data.BarDataSet;
+import com.github.mikephil.charting.data.BarEntry;
 import com.github.mikephil.charting.formatter.ValueFormatter;
+import com.github.mikephil.charting.listener.ChartTouchListener;
 import com.github.mikephil.charting.listener.OnChartGestureListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
@@ -34,47 +36,66 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.TimeZone;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class RoomActivity extends AppCompatActivity {
 
     public static final String EXTRA_SENSOR_KEY = "extra_sensor_key";
     public static final String EXTRA_ROOM_NAME = "extra_room_name";
 
-    private static final int MAX_CHART_POINTS = 10000;
-    private static final float CHART_VISIBLE_WINDOW = 8f;
-    private static final int MAX_LIST_ROWS = 10000;
-    private static final int MAX_RAW_READINGS = 10000;
-    private static final long FIFTEEN_MINUTES_MS = 15L * 60L * 1000L;
-    private final List<Float> recentValues = new ArrayList<>();
-    private final List<String> recentTimeLabels = new ArrayList<>();
-    private final List<ReadingRow> readingRows = new ArrayList<>();
-    private final List<String> activeChartLabels = new ArrayList<>();
+    private static final float CHART_MIN_VISIBLE_WINDOW_SECONDS = 10f * 60f;
+    private static final float CHART_MAX_VISIBLE_WINDOW_SECONDS = 60f * 60f;
+    private static final float TARGET_BAR_WIDTH_PX = 5f;
+    private static final int MAX_LIST_ROWS = 3000;
+    private static final int MAX_RAW_READINGS = 300;
+    private static final Pattern UTC_OFFSET_PATTERN = Pattern.compile("^(.*)\\sUTC([+-]\\d{1,2})(?::?(\\d{2}))?$");
+    private static final String[] TIMESTAMP_PATTERNS = new String[] {
+            "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+            "yyyy-MM-dd'T'HH:mm:ssXXX",
+            "yyyy-MM-dd HH:mm:ss.SSSXXX",
+            "yyyy-MM-dd HH:mm:ssXXX",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+            "yyyy-MM-dd'T'HH:mm:ssZ",
+            "yyyy-MM-dd HH:mm:ss.SSSZ",
+            "yyyy-MM-dd HH:mm:ssZ",
+            "yyyy-MM-dd'T'HH:mm:ss.SSS",
+            "yyyy-MM-dd'T'HH:mm:ss",
+            "yyyy-MM-dd HH:mm:ss.SSS",
+            "yyyy-MM-dd HH:mm:ss"
+    };
 
-    private LineChart historyChart;
+    private final List<SoundReading> firestoreReadings = new ArrayList<>();
+    private final List<SoundReading> liveReadings = new ArrayList<>();
+    private final List<SoundReading> soundReadings = new ArrayList<>();
+
+    private BarChart historyChart;
+    private TextView chartDateLabel;
     private TextView speedLabel;
     private TextView soundText;
     private TextView statusText;
-    private TextView chartDateLabel;
     private ReadingsTableAdapter listAdapter;
+    private long chartMinTimestampMs = 0L;
+    private long chartRangeMs = 0L;
+    private String roomDisplayName;
 
-    private ListenerRegistration roomListenerRegistration;
     private DatabaseReference liveSensorRef;
     private ValueEventListener liveSensorListener;
     private float latestLiveValue = Float.NaN;
     private long latestLiveTimestampMs = 0L;
-    private int currentXAxisLabelStep = 1;
-    private SimpleDateFormat dateFormat = new SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault());
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -97,15 +118,18 @@ public class RoomActivity extends AppCompatActivity {
         if (roomName == null || roomName.trim().isEmpty()) {
             roomName = getString(R.string.room_name_placeholder);
         }
+        roomDisplayName = roomName;
 
         Toolbar myToolbar = findViewById(R.id.my_toolbar);
         setSupportActionBar(myToolbar);
         int toolbarTextColor = getResources().getColor(R.color.app_on_primary, getTheme());
         myToolbar.setTitleTextColor(toolbarTextColor);
         myToolbar.setSubtitleTextColor(toolbarTextColor);
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            getSupportActionBar().setTitle(roomName);
+        ActionBar actionBar = getSupportActionBar();
+        if (actionBar != null) {
+            actionBar.setDisplayHomeAsUpEnabled(true);
+            actionBar.setTitle(roomDisplayName);
+            actionBar.setSubtitle(null);
             if (myToolbar.getNavigationIcon() != null) {
                 myToolbar.getNavigationIcon().setTint(toolbarTextColor);
             }
@@ -115,20 +139,24 @@ public class RoomActivity extends AppCompatActivity {
         }
 
         historyChart = findViewById(R.id.historyChart);
+        chartDateLabel = findViewById(R.id.chartDateLabel);
         speedLabel = findViewById(R.id.speedLabel);
         soundText = findViewById(R.id.soundText);
         statusText = findViewById(R.id.statusText);
-        chartDateLabel = findViewById(R.id.chartDateLabel);
         ListView readingsList = findViewById(R.id.readingsList);
 
-        speedLabel.setText(getString(R.string.room_noise_level_format, roomName));
+        speedLabel.setText(getString(R.string.room_sound_level_placeholder));
+        chartDateLabel.setText(R.string.room_chart_loading);
 
         int onSurface = getResources().getColor(R.color.app_on_surface, getTheme());
         configureChart(onSurface);
         listAdapter = new ReadingsTableAdapter();
         readingsList.setAdapter(listAdapter);
+        fetchFirestoreReadingsOnce(sensorKey);
         attachLiveSensorListener(sensorKey);
+    }
 
+    private void fetchFirestoreReadingsOnce(String sensorKey) {
         Query readingsQuery = FirebaseFirestore.getInstance()
                 .collection("sound_data")
                 .document(sensorKey)
@@ -136,94 +164,28 @@ public class RoomActivity extends AppCompatActivity {
                 .orderBy("timestamp", Query.Direction.DESCENDING)
                 .limit(MAX_RAW_READINGS);
 
-        roomListenerRegistration = readingsQuery.addSnapshotListener((snapshot, error) -> {
-            if (error != null) {
-                soundText.setText(getString(R.string.room_database_error_format, error.getMessage()));
-                return;
-            }
-
-            if (snapshot == null || snapshot.isEmpty()) {
-                if (Float.isNaN(latestLiveValue)) {
-                    soundText.setText(getString(R.string.room_status_waiting));
-                } else {
-                    soundText.setText(getString(R.string.room_sound_level_display_format, latestLiveValue));
-                    updateStatus(statusText, latestLiveValue);
-                    renderChart();
-                }
-                return;
-            }
-
+        readingsQuery.get().addOnSuccessListener(snapshot -> {
             try {
-                recentValues.clear();
-                recentTimeLabels.clear();
-                readingRows.clear();
-                Map<Long, BucketAccumulator> chartBuckets = new LinkedHashMap<>();
-
+                firestoreReadings.clear();
                 for (QueryDocumentSnapshot doc : snapshot) {
-                    Object valueObj = doc.get("value");
-                    if (valueObj == null) {
-                        valueObj = doc.get("db_level");
-                    }
-                    if (valueObj == null) {
-                        continue;
-                    }
-
-                    float soundLevel = Float.parseFloat(valueObj.toString());
-
-                    Timestamp ts = doc.getTimestamp("timestamp");
-                    Date time = ts != null ? ts.toDate() : new Date();
-
-                    if (readingRows.size() < MAX_LIST_ROWS) {
-                        readingRows.add(new ReadingRow(
-                                formatTimeText(time),
-                                String.format(Locale.getDefault(), "%.1f", soundLevel),
-                                getStatusLabel(soundLevel),
-                                getStatusColor(soundLevel),
-                                false));
-                    }
-
-                    long chartBucketStart = (time.getTime() / FIFTEEN_MINUTES_MS) * FIFTEEN_MINUTES_MS;
-
-                    BucketAccumulator chartBucket = chartBuckets.get(chartBucketStart);
-                    if (chartBucket == null) {
-                        chartBucket = new BucketAccumulator(chartBucketStart);
-                        chartBuckets.put(chartBucketStart, chartBucket);
-                    }
-                    chartBucket.add(soundLevel);
-                }
-
-                for (BucketAccumulator chartBucket : chartBuckets.values()) {
-                    if (recentValues.size() >= MAX_CHART_POINTS) {
-                        break;
-                    }
-
-                    float avgValue = chartBucket.getAverage();
-                    recentValues.add(avgValue);
-                    recentTimeLabels.add(formatBucketTime(chartBucket.bucketStartMs));
-                }
-
-                upsertLiveReadingRow();
-
-                if (!recentValues.isEmpty()) {
-                    float soundLevel = Float.isNaN(latestLiveValue) ? recentValues.get(0) : latestLiveValue;
-                    soundText.setText(getString(R.string.room_sound_level_display_format, soundLevel));
-                    updateStatus(statusText, soundLevel);
-                    listAdapter.notifyDataSetChanged();
-                    renderChart();
-                } else {
-                    if (Float.isNaN(latestLiveValue)) {
-                        soundText.setText(getString(R.string.room_status_waiting));
-                    } else {
-                        soundText.setText(getString(R.string.room_sound_level_display_format, latestLiveValue));
-                        updateStatus(statusText, latestLiveValue);
-                        listAdapter.notifyDataSetChanged();
-                        renderChart();
+                    SoundReading reading = parseFirestoreReading(doc);
+                    if (reading != null) {
+                        firestoreReadings.add(reading);
                     }
                 }
+
+                Collections.sort(firestoreReadings, (a, b) -> Long.compare(b.timestampMs, a.timestampMs));
+                rebuildMergedReadings();
+                refreshUiFromReadings();
             } catch (Exception e) {
                 Log.e("RoomActivity", "Error parsing Firestore sensor data", e);
                 soundText.setText(getString(R.string.room_status_error));
+                updateToolbarSoundLevel(Float.NaN);
             }
+        }).addOnFailureListener(e -> {
+            Log.e("RoomActivity", "Failed to fetch Firestore sensor data", e);
+            soundText.setText(getString(R.string.room_database_error_format, e.getMessage()));
+            updateToolbarSoundLevel(Float.NaN);
         });
     }
 
@@ -233,7 +195,6 @@ public class RoomActivity extends AppCompatActivity {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 if (!snapshot.exists()) {
-                    latestLiveValue = Float.NaN;
                     return;
                 }
 
@@ -241,20 +202,21 @@ public class RoomActivity extends AppCompatActivity {
                     DataSnapshot valueSnapshot = snapshot.child("value");
                     Object value = valueSnapshot.exists() ? valueSnapshot.getValue() : snapshot.getValue();
                     if (value == null) {
-                        latestLiveValue = Float.NaN;
                         return;
                     }
 
                     latestLiveValue = Float.parseFloat(value.toString());
-                    latestLiveTimestampMs = System.currentTimeMillis();
-                    upsertLiveReadingRow();
-                    listAdapter.notifyDataSetChanged();
-                    soundText.setText(getString(R.string.room_sound_level_display_format, latestLiveValue));
-                    updateStatus(statusText, latestLiveValue);
-                    renderChart();
+                    latestLiveTimestampMs = extractLiveTimestampMs(snapshot);
+                    if (latestLiveTimestampMs <= 0L) {
+                        latestLiveTimestampMs = System.currentTimeMillis();
+                    }
+
+                    appendLiveReading(latestLiveValue, latestLiveTimestampMs);
+                    rebuildMergedReadings();
+                    refreshUiFromReadings();
                 } catch (Exception e) {
                     Log.e("RoomActivity", "Error parsing live sensor value", e);
-                    latestLiveValue = Float.NaN;
+                    updateToolbarSoundLevel(Float.NaN);
                 }
             }
 
@@ -269,10 +231,6 @@ public class RoomActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (roomListenerRegistration != null) {
-            roomListenerRegistration.remove();
-            roomListenerRegistration = null;
-        }
         if (liveSensorRef != null && liveSensorListener != null) {
             liveSensorRef.removeEventListener(liveSensorListener);
             liveSensorListener = null;
@@ -315,8 +273,9 @@ public class RoomActivity extends AppCompatActivity {
         xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
         xAxis.setDrawGridLines(true);
         xAxis.setDrawLabels(true);
-        xAxis.setLabelCount(2, true);
-        xAxis.setGranularity(1f);
+        xAxis.setLabelCount(6, false);
+        xAxis.setGranularityEnabled(true);
+        xAxis.setGranularity(5f * 60f);
         xAxis.setAxisMinimum(0f);
         xAxis.setAxisMaximum(1f);
         xAxis.setTextColor(textColor);
@@ -325,14 +284,20 @@ public class RoomActivity extends AppCompatActivity {
         xAxis.setValueFormatter(new ValueFormatter() {
             @Override
             public String getFormattedValue(float value) {
-                int index = Math.round(value);
-                if (index < 0 || index >= activeChartLabels.size()) {
+                if (chartMinTimestampMs <= 0L) {
                     return "";
                 }
-                if (currentXAxisLabelStep > 1 && index % currentXAxisLabelStep != 0) {
+
+                long offsetMs = (long) (Math.max(0f, value) * 1000f);
+                if (offsetMs > chartRangeMs) {
                     return "";
                 }
-                return activeChartLabels.get(index);
+
+                long timestampMs = chartMinTimestampMs + offsetMs;
+                if (chartRangeMs >= 24L * 60L * 60L * 1000L) {
+                    return formatInUserTimeZone(new Date(timestampMs), "MMM d HH:mm");
+                }
+                return formatInUserTimeZone(new Date(timestampMs), "HH:mm");
             }
         });
 
@@ -344,16 +309,13 @@ public class RoomActivity extends AppCompatActivity {
         historyChart.getAxisLeft().setTextColor(textColor);
         historyChart.getAxisLeft().setTextSize(11f);
 
-        // Add gesture listener for chart scroll/scale to update date display
         historyChart.setOnChartGestureListener(new OnChartGestureListener() {
             @Override
-            public void onChartGestureStart(MotionEvent me,
-                    com.github.mikephil.charting.listener.ChartTouchListener.ChartGesture lastPerformedGesture) {
+            public void onChartGestureStart(MotionEvent me, ChartTouchListener.ChartGesture lastPerformedGesture) {
             }
 
             @Override
-            public void onChartGestureEnd(MotionEvent me,
-                    com.github.mikephil.charting.listener.ChartTouchListener.ChartGesture lastPerformedGesture) {
+            public void onChartGestureEnd(MotionEvent me, ChartTouchListener.ChartGesture lastPerformedGesture) {
                 updateChartDateLabel();
             }
 
@@ -371,174 +333,315 @@ public class RoomActivity extends AppCompatActivity {
 
             @Override
             public void onChartFling(MotionEvent me1, MotionEvent me2, float velocityX, float velocityY) {
-                updateChartDateLabel();
             }
 
             @Override
             public void onChartScale(MotionEvent me, float scaleX, float scaleY) {
+                updateChartDateLabel();
             }
 
             @Override
-            public void onChartTranslate(MotionEvent me, float dx, float dy) {
+            public void onChartTranslate(MotionEvent me, float dX, float dY) {
+                updateChartDateLabel();
             }
         });
     }
 
-    private void addReading(float value) {
-        Date now = new Date();
+    private void renderChart() {
+        List<BarEntry> entries = buildBarEntriesFromReadings();
 
-        recentValues.add(0, value);
-        readingRows.add(0, new ReadingRow(
-                formatTimeText(now),
-                String.format(Locale.getDefault(), "%.1f", value),
-                getStatusLabel(value),
-                getStatusColor(value),
-                false));
-
-        if (recentValues.size() > MAX_CHART_POINTS) {
-            recentValues.remove(recentValues.size() - 1);
-        }
-        if (readingRows.size() > MAX_LIST_ROWS) {
-            readingRows.remove(readingRows.size() - 1);
+        if (entries.isEmpty()) {
+            historyChart.clear();
+            historyChart.invalidate();
+            return;
         }
 
+        float axisMaxSeconds = Math.max(1f, chartRangeMs / 1000f);
+        XAxis xAxis = historyChart.getXAxis();
+        xAxis.setAxisMinimum(0f);
+        xAxis.setAxisMaximum(axisMaxSeconds);
+        xAxis.setGranularity(calculateXAxisGranularity(axisMaxSeconds));
+
+        BarDataSet dataSet = new BarDataSet(entries, "Noise (dB)");
+        int lineColor = getResources().getColor(R.color.status_moderate, getTheme());
+        dataSet.setColor(lineColor);
+        dataSet.setDrawValues(false);
+        dataSet.setValueTextColor(lineColor);
+        dataSet.setValueTextSize(10f);
+        dataSet.setHighLightAlpha(100);
+
+        BarData barData = new BarData(dataSet);
+        float contentWidthPx = historyChart.getViewPortHandler().contentWidth();
+        float barWidthInXAxisUnits;
+        if (contentWidthPx > 0f) {
+            float unitsPerPx = axisMaxSeconds / contentWidthPx;
+            barWidthInXAxisUnits = Math.max(0.5f, unitsPerPx * TARGET_BAR_WIDTH_PX);
+        } else {
+            // Fallback before first layout pass.
+            float granularity = calculateXAxisGranularity(axisMaxSeconds);
+            barWidthInXAxisUnits = Math.max(0.5f, granularity * 0.1f);
+        }
+        barData.setBarWidth(barWidthInXAxisUnits);
+        historyChart.setData(barData);
+
+        float visibleWindow = Math.min(axisMaxSeconds, CHART_MAX_VISIBLE_WINDOW_SECONDS);
+        visibleWindow = Math.max(visibleWindow, CHART_MIN_VISIBLE_WINDOW_SECONDS);
+        historyChart.setVisibleXRangeMaximum(visibleWindow);
+        historyChart.moveViewToX(Math.max(0f, axisMaxSeconds - visibleWindow));
+        historyChart.invalidate();
+        historyChart.post(this::updateChartDateLabel);
+    }
+
+    private List<BarEntry> buildBarEntriesFromReadings() {
+        if (soundReadings.isEmpty()) {
+            chartMinTimestampMs = 0L;
+            chartRangeMs = 0L;
+            return new ArrayList<>();
+        }
+
+        List<SoundReading> sortedAsc = new ArrayList<>(soundReadings);
+        Collections.sort(sortedAsc, (a, b) -> Long.compare(a.timestampMs, b.timestampMs));
+
+        long minTs = sortedAsc.get(0).timestampMs;
+        long maxTs = sortedAsc.get(sortedAsc.size() - 1).timestampMs;
+        if (maxTs <= minTs) {
+            maxTs = minTs + 1000L;
+        }
+
+        chartMinTimestampMs = minTs;
+        chartRangeMs = maxTs - minTs;
+
+        List<BarEntry> entries = new ArrayList<>(sortedAsc.size());
+        for (SoundReading reading : sortedAsc) {
+            float xSeconds = (reading.timestampMs - minTs) / 1000f;
+            entries.add(new BarEntry(xSeconds, reading.value));
+        }
+        return entries;
+    }
+
+    private float calculateXAxisGranularity(float axisRangeSeconds) {
+        if (axisRangeSeconds <= 15f * 60f) {
+            return 60f;
+        }
+        if (axisRangeSeconds <= 60f * 60f) {
+            return 5f * 60f;
+        }
+        if (axisRangeSeconds <= 6f * 60f * 60f) {
+            return 15f * 60f;
+        }
+        return 60f * 60f;
+    }
+
+    private SoundReading parseFirestoreReading(QueryDocumentSnapshot doc) {
+        Object valueObj = doc.get("value");
+        if (valueObj == null) {
+            valueObj = doc.get("db_level");
+        }
+        if (valueObj == null) {
+            return null;
+        }
+
+        float soundLevel = Float.parseFloat(valueObj.toString());
+        long timestampMs = parseTimestampToMillis(doc.get("timestamp"));
+        if (timestampMs <= 0L) {
+            timestampMs = System.currentTimeMillis();
+        }
+        return new SoundReading(timestampMs, soundLevel, false);
+    }
+
+    private void rebuildMergedReadings() {
+        soundReadings.clear();
+        soundReadings.addAll(firestoreReadings);
+        soundReadings.addAll(liveReadings);
+
+        Collections.sort(soundReadings, (a, b) -> Long.compare(b.timestampMs, a.timestampMs));
+        trimReadings();
+    }
+
+    private void appendLiveReading(float value, long timestampMs) {
+        if (Float.isNaN(value) || timestampMs <= 0L) {
+            return;
+        }
+
+        long maxTimestamp = timestampMs;
+        for (int i = 0; i < liveReadings.size(); i++) {
+            SoundReading reading = liveReadings.get(i);
+            if (reading.timestampMs >= maxTimestamp) {
+                maxTimestamp = reading.timestampMs + 1L;
+            }
+        }
+
+        liveReadings.add(new SoundReading(maxTimestamp, value, true));
+        Collections.sort(liveReadings, (a, b) -> Long.compare(b.timestampMs, a.timestampMs));
+    }
+
+    private long extractLiveTimestampMs(DataSnapshot snapshot) {
+        return parseTimestampToMillis(snapshot.child("timestamp").getValue());
+    }
+
+    private long parseTimestampToMillis(Object rawTimestamp) {
+        if (rawTimestamp == null) {
+            return 0L;
+        }
+
+        if (rawTimestamp instanceof Timestamp) {
+            return ((Timestamp) rawTimestamp).toDate().getTime();
+        }
+        if (rawTimestamp instanceof Date) {
+            return ((Date) rawTimestamp).getTime();
+        }
+        if (rawTimestamp instanceof Number) {
+            return ((Number) rawTimestamp).longValue();
+        }
+
+        String raw = rawTimestamp.toString().trim();
+        if (raw.isEmpty()) {
+            return 0L;
+        }
+
+        try {
+            return Long.parseLong(raw);
+        } catch (NumberFormatException ignored) {
+            // Not an epoch value; fall through to date parsing.
+        }
+
+        String normalized = normalizeUtcOffset(raw);
+
+        for (String pattern : TIMESTAMP_PATTERNS) {
+            try {
+                SimpleDateFormat parser = new SimpleDateFormat(pattern, Locale.US);
+                if (!pattern.contains("X") && !pattern.contains("Z")) {
+                    // Strings without zone info are assumed to be UTC before converting to user
+                    // locale.
+                    parser.setTimeZone(TimeZone.getTimeZone("UTC"));
+                }
+                Date parsed = parser.parse(normalized);
+                if (parsed != null) {
+                    return parsed.getTime();
+                }
+            } catch (ParseException ignored) {
+                // Try next known format.
+            }
+        }
+
+        return 0L;
+    }
+
+    private String normalizeUtcOffset(String raw) {
+        Matcher matcher = UTC_OFFSET_PATTERN.matcher(raw);
+        if (!matcher.matches()) {
+            return raw;
+        }
+
+        String base = matcher.group(1).trim();
+        String hoursPart = matcher.group(2);
+        String minutesPart = matcher.group(3);
+
+        int hours = 0;
+        try {
+            hours = Integer.parseInt(hoursPart);
+        } catch (NumberFormatException ignored) {
+            return raw;
+        }
+
+        String sign = hours >= 0 ? "+" : "-";
+        int absHours = Math.abs(hours);
+        String normalizedMinutes = minutesPart == null ? "00" : minutesPart;
+
+        return String.format(Locale.US, "%s %s%02d:%s", base, sign, absHours, normalizedMinutes);
+    }
+
+    private void trimReadings() {
+        while (soundReadings.size() > MAX_RAW_READINGS) {
+            soundReadings.remove(soundReadings.size() - 1);
+        }
+        while (firestoreReadings.size() > MAX_RAW_READINGS) {
+            firestoreReadings.remove(firestoreReadings.size() - 1);
+        }
+        while (liveReadings.size() > MAX_RAW_READINGS) {
+            liveReadings.remove(liveReadings.size() - 1);
+        }
+    }
+
+    private void refreshUiFromReadings() {
+        if (soundReadings.isEmpty()) {
+            chartDateLabel.setText(R.string.room_chart_no_data);
+            if (Float.isNaN(latestLiveValue)) {
+                soundText.setText(getString(R.string.room_status_waiting));
+                speedLabel.setText(getString(R.string.room_sound_level_placeholder));
+                updateToolbarSoundLevel(Float.NaN);
+            } else {
+                soundText.setText(getString(R.string.room_sound_level_display_format, latestLiveValue));
+                speedLabel.setText(getString(R.string.room_sound_level_display_format, latestLiveValue));
+                updateStatus(statusText, latestLiveValue);
+                updateToolbarSoundLevel(latestLiveValue);
+            }
+            listAdapter.notifyDataSetChanged();
+            renderChart();
+            return;
+        }
+
+        float latestValue = soundReadings.get(0).value;
+        soundText.setText(getString(R.string.room_sound_level_display_format, latestValue));
+        speedLabel.setText(getString(R.string.room_sound_level_display_format, latestValue));
+        updateStatus(statusText, latestValue);
+        updateToolbarSoundLevel(latestValue);
+        updateChartDateLabel();
         listAdapter.notifyDataSetChanged();
         renderChart();
     }
 
-    private void renderChart() {
-        List<Float> chartValues = getChartValuesWithLivePoint();
-        List<String> chartLabels = getChartLabelsWithLivePoint();
-
-        activeChartLabels.clear();
-        activeChartLabels.addAll(chartLabels);
-
-        List<Entry> entries = new ArrayList<>();
-        int totalPoints = chartValues.size();
-        for (int i = 0; i < chartValues.size(); i++) {
-            float value = chartValues.get(chartValues.size() - 1 - i);
-            entries.add(new Entry(i, value));
-        }
-
-        LineDataSet dataSet = new LineDataSet(entries, "Noise (dB)");
-        int lineColor = getResources().getColor(R.color.status_moderate, getTheme());
-        dataSet.setColor(lineColor);
-        dataSet.setMode(LineDataSet.Mode.CUBIC_BEZIER);
-        dataSet.setDrawValues(true);
-        dataSet.setValueTextColor(lineColor);
-        dataSet.setValueTextSize(10f);
-        dataSet.setLineWidth(3.5f);
-        dataSet.setDrawCircles(true);
-        dataSet.setCircleColor(lineColor);
-        dataSet.setCircleRadius(4f);
-        dataSet.setDrawCircleHole(false);
-        dataSet.setHighlightEnabled(true);
-        dataSet.setDrawHorizontalHighlightIndicator(false);
-        dataSet.setDrawVerticalHighlightIndicator(true);
-
-        historyChart.setData(new LineData(dataSet));
-        float axisMax = Math.max(0f, totalPoints - 1f);
-        XAxis xAxis = historyChart.getXAxis();
-        xAxis.setAxisMinimum(0f);
-        xAxis.setAxisMaximum(axisMax);
-        currentXAxisLabelStep = calculateXAxisLabelStep(totalPoints);
-        xAxis.setGranularity(1f);
-        xAxis.setLabelCount(Math.max(2, (totalPoints / Math.max(1, currentXAxisLabelStep)) + 1), true);
-        historyChart.setVisibleXRangeMaximum(CHART_VISIBLE_WINDOW);
-        historyChart.moveViewToX(Math.max(0f, totalPoints - CHART_VISIBLE_WINDOW));
-        historyChart.invalidate();
-        updateChartDateLabel();
-    }
-
-    private List<Float> getChartValuesWithLivePoint() {
-        List<Float> chartValues = new ArrayList<>(recentValues);
-        if (!Float.isNaN(latestLiveValue)) {
-            if (chartValues.isEmpty()) {
-                chartValues.add(latestLiveValue);
-            } else {
-                chartValues.set(0, latestLiveValue);
-            }
-        }
-        return chartValues;
-    }
-
-    private List<String> getChartLabelsWithLivePoint() {
-        List<String> labels = new ArrayList<>(recentTimeLabels);
-        if (!Float.isNaN(latestLiveValue) && latestLiveTimestampMs > 0L) {
-            String liveLabel = formatBucketTime(latestLiveTimestampMs);
-            if (labels.isEmpty()) {
-                labels.add(liveLabel);
-            } else {
-                labels.set(0, liveLabel);
-            }
-        }
-        return labels;
-    }
-
-    private int calculateXAxisLabelStep(int pointCount) {
-        if (pointCount <= 8) {
-            return 1;
-        }
-        if (pointCount <= 16) {
-            return 2;
-        }
-        if (pointCount <= 24) {
-            return 3;
-        }
-        return 4;
-    }
-
-    private void upsertLiveReadingRow() {
-        if (Float.isNaN(latestLiveValue) || latestLiveTimestampMs <= 0L) {
+    private void updateToolbarSoundLevel(float value) {
+        ActionBar actionBar = getSupportActionBar();
+        if (actionBar == null) {
             return;
         }
-
-        ReadingRow liveRow = new ReadingRow(
-                formatTimeText(new Date(latestLiveTimestampMs)),
-                String.format(Locale.getDefault(), "%.1f", latestLiveValue),
-                getStatusLabel(latestLiveValue),
-                getStatusColor(latestLiveValue),
-                true);
-
-        if (!readingRows.isEmpty() && readingRows.get(0).isLive) {
-            readingRows.set(0, liveRow);
-        } else {
-            readingRows.add(0, liveRow);
-        }
-
-        if (readingRows.size() > MAX_LIST_ROWS) {
-            readingRows.remove(readingRows.size() - 1);
-        }
-    }
-
-    private String formatTimeText(Date time) {
-        return new SimpleDateFormat("MMM d, h:mm:ss a", Locale.getDefault()).format(time);
-    }
-
-    private String formatBucketTime(long bucketStartMs) {
-        return new SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()).format(new Date(bucketStartMs));
+        actionBar.setTitle(roomDisplayName);
+        actionBar.setSubtitle(null);
     }
 
     private void updateChartDateLabel() {
-        if (activeChartLabels.isEmpty()) {
-            chartDateLabel.setText("Loading...");
+        if (soundReadings.isEmpty()) {
+            chartDateLabel.setText(R.string.room_chart_no_data);
             return;
         }
 
-        // Get the lowest visible x value (leftmost point on chart)
-        float lowestVisibleX = historyChart.getLowestVisibleX();
-        int lowestIndex = Math.max(0, Math.round(lowestVisibleX));
-        lowestIndex = Math.min(lowestIndex, activeChartLabels.size() - 1);
-
-        // Extract date from the lowest visible label
-        String visibleLabel = activeChartLabels.get(lowestIndex);
-        // Format: "MMM d, h:mm a" -> extract date part (e.g., "Mar 21")
-        String[] parts = visibleLabel.split(", ");
-        if (parts.length > 0) {
-            chartDateLabel.setText("Date: " + parts[0]);
-        } else {
-            chartDateLabel.setText("Date: " + visibleLabel);
+        if (chartMinTimestampMs <= 0L || chartRangeMs <= 0L) {
+            chartDateLabel.setText(formatChartDayText(new Date(soundReadings.get(0).timestampMs)));
+            return;
         }
+
+        float lowestVisibleX = Math.max(0f, historyChart.getLowestVisibleX());
+        float highestVisibleX = Math.max(lowestVisibleX, historyChart.getHighestVisibleX());
+
+        long startOffsetMs = Math.min(chartRangeMs, Math.max(0L, (long) (lowestVisibleX * 1000f)));
+        long endOffsetMs = Math.min(chartRangeMs, Math.max(0L, (long) (highestVisibleX * 1000f)));
+
+        long visibleStartMs = chartMinTimestampMs + startOffsetMs;
+        long visibleEndMs = chartMinTimestampMs + endOffsetMs;
+
+        String startDay = formatChartDayText(new Date(visibleStartMs));
+        String endDay = formatChartDayText(new Date(visibleEndMs));
+
+        if (startDay.equals(endDay)) {
+            chartDateLabel.setText(startDay);
+            return;
+        }
+        chartDateLabel.setText(startDay + " - " + endDay);
+    }
+
+    private String formatChartDayText(Date time) {
+        return formatInUserTimeZone(time, "MMM dd, yyyy");
+    }
+
+    private String formatTimeText(Date time) {
+        return formatInUserTimeZone(time, "MMM d, h:mm:ss a");
+    }
+
+    private String formatInUserTimeZone(Date time, String pattern) {
+        SimpleDateFormat formatter = new SimpleDateFormat(pattern, Locale.getDefault());
+        formatter.setTimeZone(TimeZone.getDefault());
+        return formatter.format(time);
     }
 
     private String getStatusLabel(float dB) {
@@ -561,41 +664,15 @@ public class RoomActivity extends AppCompatActivity {
         return getResources().getColor(R.color.status_loud, getTheme());
     }
 
-    private static final class ReadingRow {
-        private final String timeText;
-        private final String valueText;
-        private final String statusText;
-        private final int statusColor;
+    private static final class SoundReading {
+        private final long timestampMs;
+        private final float value;
         private final boolean isLive;
 
-        private ReadingRow(String timeText, String valueText, String statusText, int statusColor, boolean isLive) {
-            this.timeText = timeText;
-            this.valueText = valueText;
-            this.statusText = statusText;
-            this.statusColor = statusColor;
+        private SoundReading(long timestampMs, float value, boolean isLive) {
+            this.timestampMs = timestampMs;
+            this.value = value;
             this.isLive = isLive;
-        }
-    }
-
-    private static final class BucketAccumulator {
-        private final long bucketStartMs;
-        private float sum;
-        private int count;
-
-        private BucketAccumulator(long bucketStartMs) {
-            this.bucketStartMs = bucketStartMs;
-        }
-
-        private void add(float value) {
-            sum += value;
-            count++;
-        }
-
-        private float getAverage() {
-            if (count == 0) {
-                return 0f;
-            }
-            return sum / count;
         }
     }
 
@@ -604,12 +681,12 @@ public class RoomActivity extends AppCompatActivity {
 
         @Override
         public int getCount() {
-            return readingRows.size();
+            return Math.min(soundReadings.size(), MAX_LIST_ROWS);
         }
 
         @Override
         public Object getItem(int position) {
-            return readingRows.get(position);
+            return soundReadings.get(position);
         }
 
         @Override
@@ -624,15 +701,15 @@ public class RoomActivity extends AppCompatActivity {
                 rowView = inflater.inflate(R.layout.list_item_reading_row, parent, false);
             }
 
-            ReadingRow row = readingRows.get(position);
+            SoundReading row = soundReadings.get(position);
             TextView timeCell = rowView.findViewById(R.id.timeCell);
             TextView valueCell = rowView.findViewById(R.id.valueCell);
             TextView statusCell = rowView.findViewById(R.id.statusCell);
 
-            timeCell.setText(row.timeText);
-            valueCell.setText(row.valueText);
-            statusCell.setText(row.statusText);
-            statusCell.setTextColor(row.statusColor);
+            timeCell.setText(formatTimeText(new Date(row.timestampMs)));
+            valueCell.setText(String.format(Locale.getDefault(), "%.1f", row.value));
+            statusCell.setText(getStatusLabel(row.value));
+            statusCell.setTextColor(getStatusColor(row.value));
 
             return rowView;
         }

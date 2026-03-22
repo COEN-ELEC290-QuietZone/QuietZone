@@ -38,14 +38,14 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
-        android:text="Loading..."
+        android:text="@string/room_chart_loading"
         android:textColor="@color/app_on_surface"
         android:textSize="14sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/speedLabel" />
 
-    <com.github.mikephil.charting.charts.LineChart
+    <com.github.mikephil.charting.charts.BarChart
         android:id="@+id/historyChart"
         android:layout_width="0dp"
         android:layout_height="220dp"
@@ -64,6 +64,7 @@
         android:text="@string/room_sound_level_placeholder"
         android:textColor="@color/app_on_surface"
         android:textSize="20sp"
+        android:visibility="gone"
         android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -73,14 +74,14 @@
         android:id="@+id/statusText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="16dp"
         android:text="@string/room_sound_placeholder"
         android:textColor="@color/app_on_surface"
         android:textSize="18sp"
         android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/soundText" />
+        app:layout_constraintTop_toBottomOf="@id/historyChart" />
 
     <TextView
         android:id="@+id/readingsTitle"
