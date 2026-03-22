@@ -32,10 +32,6 @@ public class SignUpActivity extends AppCompatActivity {
 
         if (getSupportActionBar() != null) {
             getSupportActionBar().setTitle(getString(R.string.signup_title));
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            if (myToolbar.getNavigationIcon() != null) {
-                myToolbar.getNavigationIcon().setTint(toolbarTextColor);
-            }
         }
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
@@ -87,9 +83,4 @@ public class SignUpActivity extends AppCompatActivity {
         });
     }
 
-    @Override
-    public boolean onSupportNavigateUp() {
-        finish();
-        return true;
-    }
 }

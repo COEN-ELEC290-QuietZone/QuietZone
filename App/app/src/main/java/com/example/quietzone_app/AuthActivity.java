@@ -41,16 +41,8 @@ public class AuthActivity extends AppCompatActivity {
         });
 
         Button loginButton = findViewById(R.id.loginButton);
-        Button signUpButton = findViewById(R.id.signUpButton);
         EditText usernameInput = findViewById(R.id.usernameInput);
         EditText passwordInput = findViewById(R.id.passwordInput);
-
-        if (signUpButton != null) {
-            signUpButton.setOnClickListener(v -> {
-                Intent intent = new Intent(AuthActivity.this, SignUpActivity.class);
-                startActivity(intent);
-            });
-        }
 
         if (loginButton != null) {
             loginButton.setOnClickListener(v -> {

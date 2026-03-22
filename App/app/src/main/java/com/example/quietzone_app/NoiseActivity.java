@@ -64,17 +64,6 @@ public class NoiseActivity extends AppCompatActivity {
             getSupportActionBar().setDisplayHomeAsUpEnabled(false);
         }
 
-        BottomNavigationView bottomNavigation = findViewById(R.id.bottomNavigation);
-        bottomNavigation.setOnItemSelectedListener(item -> {
-            if (item.getItemId() == R.id.nav_home) {
-                return true;
-            } else if (item.getItemId() == R.id.nav_settings) {
-                startActivity(new Intent(NoiseActivity.this, SettingsActivity.class));
-                return true;
-            }
-            return false;
-        });
-
         setupNavigation();
 
         expandableListView = findViewById(R.id.roomExpandableList);
@@ -100,18 +89,20 @@ public class NoiseActivity extends AppCompatActivity {
 
     private void setupNavigation() {
         BottomNavigationView bottomNav = findViewById(R.id.bottomNavigation);
+        bottomNav.setSelectedItemId(R.id.nav_home);
         bottomNav.setOnItemSelectedListener(item -> {
             int id = item.getItemId();
             if (id == R.id.nav_profile) {
                 startActivity(new Intent(this, ProfileActivity.class));
+                finish();
                 return true;
-            }   else if (id == R.id.nav_settings) {
+            } else if (id == R.id.nav_settings) {
                 startActivity(new Intent(this, SettingsActivity.class));
+                finish();
                 return true;
             }
             return id == R.id.nav_home;
         });
-
 
     }
 
@@ -216,7 +207,7 @@ public class NoiseActivity extends AppCompatActivity {
                         if (room.speedView != null) {
                             if (Float.isNaN(room.lastDisplayedSpeed)
                                     || Math.abs(soundLevel - room.lastDisplayedSpeed) > 1.0f) {
-                                room.speedView.speedTo(soundLevel);
+                                updateSpeedometerInstant(room.speedView, soundLevel);
                                 room.lastDisplayedSpeed = soundLevel;
                             }
                         }
@@ -265,11 +256,10 @@ public class NoiseActivity extends AppCompatActivity {
     }
 
     private String toRoomName(String sensorKey) {
-        int sensorIndex = extractSensorIndex(sensorKey);
-        if (sensorIndex > 0) {
-            return getString(R.string.room_name_format, sensorIndex);
+        if (sensorKey != null && !sensorKey.trim().isEmpty()) {
+            return getString(R.string.room_name_format, sensorKey);
         }
-        return sensorKey;
+        return getString(R.string.room_name_placeholder);
     }
 
     private int extractSensorIndex(String sensorKey) {
@@ -372,6 +362,7 @@ public class NoiseActivity extends AppCompatActivity {
             sv.setSpeedometerWidth(strokePx);
             sv.setSpeedTextSize(0);
             sv.setUnitTextSize(dpToPx(10));
+            sv.setWithTremble(false);
 
             room.speedView = sv;
             room.soundText = soundTv;
@@ -390,10 +381,10 @@ public class NoiseActivity extends AppCompatActivity {
                 soundTv.setText(R.string.room_sound_placeholder);
                 statusTv.setText(R.string.room_status_waiting);
                 statusTv.setTextColor(onSurface);
-                sv.speedTo(0);
+                updateSpeedometerInstant(sv, 0f);
             } else {
                 soundTv.setText(getString(R.string.room_sound_format, latest));
-                sv.speedTo(latest);
+                updateSpeedometerInstant(sv, latest);
                 room.lastDisplayedSpeed = latest;
                 applyStatusText(statusTv, latest);
             }
@@ -449,6 +440,11 @@ public class NoiseActivity extends AppCompatActivity {
 
     private int dpToPx(int dp) {
         return Math.round(dp * getResources().getDisplayMetrics().density);
+    }
+
+    private void updateSpeedometerInstant(SpeedView speedView, float level) {
+        float clampedLevel = Math.max(0f, Math.min(level, speedView.getMaxSpeed()));
+        speedView.speedTo(clampedLevel, 0);
     }
 
     @Override

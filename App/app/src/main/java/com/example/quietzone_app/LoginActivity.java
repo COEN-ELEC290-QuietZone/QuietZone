@@ -49,7 +49,6 @@ public class LoginActivity extends AppCompatActivity {
     private FirebaseAuth mAuth;
     private FirebaseFirestore db;
 
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -72,10 +71,7 @@ public class LoginActivity extends AppCompatActivity {
         myToolbar.setSubtitleTextColor(toolbarTextColor);
 
         if (getSupportActionBar() != null) {
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            if (myToolbar.getNavigationIcon() != null) {
-                myToolbar.getNavigationIcon().setTint(toolbarTextColor);
-            }
+            getSupportActionBar().setTitle(getString(R.string.login_button));
         }
         if (myToolbar.getOverflowIcon() != null) {
             myToolbar.getOverflowIcon().setTint(toolbarTextColor);
@@ -91,7 +87,7 @@ public class LoginActivity extends AppCompatActivity {
 
         usernameInput = findViewById(R.id.usernameInput);
         passwordInput = findViewById(R.id.passwordInput);
-        loginButton   = findViewById(R.id.loginButton);
+        loginButton = findViewById(R.id.loginButton);
 
         confirmPasswordInput = findViewById(R.id.confirmPassword);
         newUserText = findViewById(R.id.Newuser);
@@ -129,7 +125,7 @@ public class LoginActivity extends AppCompatActivity {
             animateView(confirmPasswordInput, false);
 
             loginButton.setText("Login");
-            newUserText.setText("Sign Up");
+            newUserText.setText("New User?");
             loginTitle.setText("Login");
         } else {
             animateView(confirmPasswordInput, true);
@@ -141,7 +137,7 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void handleAuth() {
-        String email    = usernameInput.getText().toString().trim();
+        String email = usernameInput.getText().toString().trim();
         String password = passwordInput.getText().toString().trim();
 
         // Basic local validation
@@ -200,7 +196,7 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void navigateToDashboard() {
-        Intent intent = new Intent(this, MainActivity.class);
+        Intent intent = new Intent(this, NoiseActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();

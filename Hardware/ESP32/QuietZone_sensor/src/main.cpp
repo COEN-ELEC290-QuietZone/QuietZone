@@ -5,7 +5,7 @@
 
 // Create instances
 SoundSensor soundSensor;
-// MQTTClientManager mqttManager; // Commented out until Raspberry Pi is available
+MQTTClientManager mqttManager; // Enable when MQTT backend is available
 
 namespace
 {
@@ -53,7 +53,7 @@ void setup()
     soundSensor.begin();
 
     // Initialize MQTT connection
-    // mqttManager.begin();  // Commented out until Raspberry Pi is available
+    mqttManager.begin();
 
     if (kSetupModeEnabled)
     {
@@ -67,7 +67,7 @@ void setup()
 void loop()
 {
     // Maintain MQTT connection
-    // mqttManager.maintainConnection();  // Commented out until Raspberry Pi is available
+    mqttManager.maintainConnection();
 
     // Read sound level and status
     float soundLevel = soundSensor.readSoundLevel();
@@ -80,14 +80,14 @@ void loop()
     Serial.println("Simple Sound Level: " + String(soundLevel, 1) + " dB, Status: " + soundStatus);
 
     // Publish to MQTT if connected and interval elapsed
-    // if (mqttManager.isConnected() && mqttManager.shouldPublish())
-    //  {
-    //      if (mqttManager.publishSoundData(soundLevel, soundStatus))
-    //      {
-    //          Serial.println("[MQTT] Data published: Sensor 1, " + String(soundLevel, 1) + " dB, Status: " + soundStatus);
-    //      }
-    //      mqttManager.updateLastPublish();
-    //  }
+    if (mqttManager.isConnected() && mqttManager.shouldPublish())
+    {
+        if (mqttManager.publishSoundData(soundLevel, soundStatus))
+        {
+            Serial.println("[MQTT] Data published: Sensor 1, " + String(soundLevel, 1) + " dB, Status: " + soundStatus);
+        }
+        mqttManager.updateLastPublish();
+    }
 
     Serial.println("---");
     delay(500); // Update every 500ms for easier reading

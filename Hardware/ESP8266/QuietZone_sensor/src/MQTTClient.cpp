@@ -1,9 +1,9 @@
 #include "MQTTClient.h"
-
-const char *MQTTClientManager::ssid = "ESP8266_Network";
-const char *MQTTClientManager::password = "yourpassword123";
-const char *MQTTClientManager::mqttServer = "192.168.4.1";
+const char *MQTTClientManager::ssid = "YOUR_SSID";
+const char *MQTTClientManager::password = "YOUR_PASSWORD";
+const char *MQTTClientManager::mqttServer = "YOUR_MQTT_SERVER";
 const char *MQTTClientManager::sensorId = "esp8266_sensor_01";
+const char *MQTTClientManager::sensorName = "Sensor 1 ESP8266";
 
 MQTTClientManager::MQTTClientManager() : mqttClient(espClient), lastPublish(0)
 {
@@ -75,7 +75,7 @@ void MQTTClientManager::maintainConnection()
 
 bool MQTTClientManager::publishSoundData(float dbLevel, const String &status)
 {
-    String payload = "{\"sensor_name\":\"Sensor 1\",\"sensor_id\":\"" + String(sensorId) +
+    String payload = "{\"sensor_name\":\"" + String(sensorName) + "\",\"sensor_id\":\"" + String(sensorId) +
                      "\",\"db_level\":" + String(dbLevel, 1) +
                      ",\"status\":\"" + status + "\"}";
 
@@ -83,7 +83,7 @@ bool MQTTClientManager::publishSoundData(float dbLevel, const String &status)
 
     if (published)
     {
-        Serial.println("[INFO] MQTT publish OK: Sensor 1, " + String(dbLevel, 1) + " dB, Status: " + status);
+        Serial.println("[INFO] MQTT publish OK: " + String(sensorName) + ", " + String(dbLevel, 1) + " dB, Status: " + status);
     }
     else
     {

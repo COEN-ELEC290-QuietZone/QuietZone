@@ -45,6 +45,7 @@ dependencies {
 
     // SpeedView library for gauge displays
     implementation("com.github.anastr:speedviewlib:1.6.1")
+    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)

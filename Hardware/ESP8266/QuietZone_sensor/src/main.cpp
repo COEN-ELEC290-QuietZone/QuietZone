@@ -4,7 +4,7 @@
 #include "MQTTClient.h"
 
 SoundSensor soundSensor;
-// MQTTClientManager mqttManager; // Enable when MQTT backend is available
+MQTTClientManager mqttManager; // Enable when MQTT backend is available
 
 namespace
 {
@@ -62,7 +62,7 @@ void setup()
 
 void loop()
 {
-  // mqttManager.maintainConnection();
+  mqttManager.maintainConnection();
 
   float soundLevel = soundSensor.readSoundLevel();
   String soundStatus = soundSensor.getStatus();
@@ -71,14 +71,14 @@ void loop()
 
   Serial.println("Simple Sound Level: " + String(soundLevel, 1) + " dB, Status: " + soundStatus);
 
-  // if (mqttManager.isConnected() && mqttManager.shouldPublish())
-  // {
-  //     if (mqttManager.publishSoundData(soundLevel, soundStatus))
-  //     {
-  //         Serial.println("[MQTT] Data published: Sensor 1, " + String(soundLevel, 1) + " dB, Status: " + soundStatus);
-  //     }
-  //     mqttManager.updateLastPublish();
-  // }
+  if (mqttManager.isConnected() && mqttManager.shouldPublish())
+  {
+      if (mqttManager.publishSoundData(soundLevel, soundStatus))
+      {
+          Serial.println("[MQTT] Data published: Sensor 1, " + String(soundLevel, 1) + " dB, Status: " + soundStatus);
+      }
+      mqttManager.updateLastPublish();
+  }
 
   Serial.println("---");
   delay(500);
