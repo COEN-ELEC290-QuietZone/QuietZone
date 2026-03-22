@@ -33,16 +33,28 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/my_toolbar" />
 
+    <TextView
+        android:id="@+id/chartDateLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="Loading..."
+        android:textColor="@color/app_on_surface"
+        android:textSize="14sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/speedLabel" />
+
     <com.github.mikephil.charting.charts.LineChart
         android:id="@+id/historyChart"
         android:layout_width="0dp"
         android:layout_height="220dp"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="8dp"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/speedLabel" />
+        app:layout_constraintTop_toBottomOf="@id/chartDateLabel" />
 
     <TextView
         android:id="@+id/soundText"
