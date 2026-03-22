@@ -5,7 +5,7 @@
     <string name="profile_avatar_desc">Profile Avatar</string>
     <string name="noise_levels_title">Noise Levels</string>
     <string name="room_name_placeholder">Room</string>
-    <string name="room_name_format">Room %1$d</string>
+    <string name="room_name_format">%1$s</string>
     <string name="room_group_status_waiting">Waiting</string>
     <string name="room_group_status_error">Error</string>
     <string name="room_sound_placeholder">-- dB</string>
