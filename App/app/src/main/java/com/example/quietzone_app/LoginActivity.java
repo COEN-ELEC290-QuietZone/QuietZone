@@ -187,6 +187,7 @@ public class LoginActivity extends AppCompatActivity {
         Map<String, Object> userDoc = new HashMap<>();
         userDoc.put("favourites", new ArrayList<>());
         userDoc.put("notification_settings", new HashMap<>());
+        userDoc.put("role", "user");
 
         db.collection("users").document(uid)
                 .set(userDoc)
