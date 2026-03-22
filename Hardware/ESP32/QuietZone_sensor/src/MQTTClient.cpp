@@ -1,9 +1,9 @@
 #include "MQTTClient.h"
 
 // Static member definitions
-const char *MQTTClientManager::ssid = "ESP32_Network";
-const char *MQTTClientManager::password = "yourpassword123";
-const char *MQTTClientManager::mqtt_server = "192.168.4.1";
+const char *MQTTClientManager::ssid = "dlink-6E87"; // Replace with your WiFi SSID
+const char *MQTTClientManager::password = "ahaph96699";
+const char *MQTTClientManager::mqtt_server = "192.168.100.102";
 const char *MQTTClientManager::sensor_id = "esp32_sensor_01";
 
 MQTTClientManager::MQTTClientManager() : mqttClient(espClient)
