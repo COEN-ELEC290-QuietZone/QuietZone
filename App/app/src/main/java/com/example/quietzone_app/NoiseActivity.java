@@ -105,13 +105,12 @@ public class NoiseActivity extends AppCompatActivity {
             if (id == R.id.nav_profile) {
                 startActivity(new Intent(this, ProfileActivity.class));
                 return true;
-            }   else if (id == R.id.nav_settings) {
+            } else if (id == R.id.nav_settings) {
                 startActivity(new Intent(this, SettingsActivity.class));
                 return true;
             }
             return id == R.id.nav_home;
         });
-
 
     }
 
@@ -265,11 +264,10 @@ public class NoiseActivity extends AppCompatActivity {
     }
 
     private String toRoomName(String sensorKey) {
-        int sensorIndex = extractSensorIndex(sensorKey);
-        if (sensorIndex > 0) {
-            return getString(R.string.room_name_format, sensorIndex);
+        if (sensorKey != null && !sensorKey.trim().isEmpty()) {
+            return getString(R.string.room_name_format, sensorKey);
         }
-        return sensorKey;
+        return getString(R.string.room_name_placeholder);
     }
 
     private int extractSensorIndex(String sensorKey) {
