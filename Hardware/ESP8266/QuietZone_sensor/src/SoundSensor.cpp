@@ -50,7 +50,15 @@ float SoundSensor::readSoundLevel()
         return -80.0f;
     }
 
-    return 20.0f * log10f(rmsValue) + CALIBRATION_OFFSET;
+    // Convert RMS ADC counts to voltage
+    float rmsVolts = rmsValue * VOLTS_PER_COUNT;
+
+    // dB SPL = 20 * log10(Vrms / Vref) + sensitivity_compensation + calibration
+    // Using 1V as dBV reference and MAX9814 sensitivity
+    float dbv = 20.0f * log10f(rmsVolts);
+    float dbSPL = dbv - MAX9814_SENSITIVITY_DB + CALIBRATION_OFFSET;
+
+    return dbSPL;
 }
 
 bool SoundSensor::isSoundDetected()
