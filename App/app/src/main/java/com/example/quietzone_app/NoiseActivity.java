@@ -64,17 +64,6 @@ public class NoiseActivity extends AppCompatActivity {
             getSupportActionBar().setDisplayHomeAsUpEnabled(false);
         }
 
-        BottomNavigationView bottomNavigation = findViewById(R.id.bottomNavigation);
-        bottomNavigation.setOnItemSelectedListener(item -> {
-            if (item.getItemId() == R.id.nav_home) {
-                return true;
-            } else if (item.getItemId() == R.id.nav_settings) {
-                startActivity(new Intent(NoiseActivity.this, SettingsActivity.class));
-                return true;
-            }
-            return false;
-        });
-
         setupNavigation();
 
         expandableListView = findViewById(R.id.roomExpandableList);
@@ -100,13 +89,16 @@ public class NoiseActivity extends AppCompatActivity {
 
     private void setupNavigation() {
         BottomNavigationView bottomNav = findViewById(R.id.bottomNavigation);
+        bottomNav.setSelectedItemId(R.id.nav_home);
         bottomNav.setOnItemSelectedListener(item -> {
             int id = item.getItemId();
             if (id == R.id.nav_profile) {
                 startActivity(new Intent(this, ProfileActivity.class));
+                finish();
                 return true;
             } else if (id == R.id.nav_settings) {
                 startActivity(new Intent(this, SettingsActivity.class));
+                finish();
                 return true;
             }
             return id == R.id.nav_home;
