@@ -3,7 +3,7 @@
 // Static member definitions
 const char *MQTTClientManager::ssid = "YOUR_SSID";
 const char *MQTTClientManager::password = "YOUR_PASSWORD";
-const char *MQTTClientManager::mqttServer = "YOUR_MQTT_SERVER";
+const char *MQTTClientManager::mqtt_server = "YOUR_MQTT_SERVER";
 const char *MQTTClientManager::sensor_id = "esp32_sensor_01";
 
 MQTTClientManager::MQTTClientManager() : mqttClient(espClient)
