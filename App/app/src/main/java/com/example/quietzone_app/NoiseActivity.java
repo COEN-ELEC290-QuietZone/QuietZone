@@ -9,6 +9,7 @@ import android.view.ViewGroup;
 import android.widget.BaseExpandableListAdapter;
 import android.widget.Button;
 import android.widget.ExpandableListView;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -22,15 +23,18 @@ import androidx.core.view.WindowInsetsCompat;
 
 import com.github.anastr.speedviewlib.SpeedView;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ServerValue;
 import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,11 +43,14 @@ public class NoiseActivity extends AppCompatActivity {
 
     private final List<RoomItem> rooms = new ArrayList<>();
     private final Map<String, RoomItem> roomBySensorKey = new LinkedHashMap<>();
+    private final Map<String, Long> favoriteRooms = new HashMap<>();
 
     private ExpandableListView expandableListView;
     private RoomExpandableAdapter roomAdapter;
     private DatabaseReference liveSensorsRef;
+    private DatabaseReference userFavoritesRef;
     private ValueEventListener liveSensorsListener;
+    private ValueEventListener favoritesListener;
     private FirebaseListenerRegistry.ListenerHandle liveSensorsHandle;
 
     @Override
@@ -71,6 +78,26 @@ public class NoiseActivity extends AppCompatActivity {
         roomAdapter = new RoomExpandableAdapter();
         expandableListView.setAdapter(roomAdapter);
 
+        String userId = FirebaseAuth.getInstance().getUid();
+        if (userId != null) {
+            userFavoritesRef = FirebaseDatabase.getInstance().getReference("users").child(userId).child("favorites");
+            favoritesListener = new ValueEventListener() {
+                @Override
+                public void onDataChange(@NonNull DataSnapshot snapshot) {
+                    favoriteRooms.clear();
+                    for (DataSnapshot child : snapshot.getChildren()) {
+                        favoriteRooms.put(child.getKey(), child.getValue(Long.class));
+                    }
+                    sortRooms();
+                    roomAdapter.notifyDataSetChanged();
+                }
+
+                @Override
+                public void onCancelled(@NonNull DatabaseError error) {}
+            };
+            userFavoritesRef.addValueEventListener(favoritesListener);
+        }
+
         liveSensorsRef = FirebaseDatabase.getInstance().getReference("sound_data/live");
         liveSensorsListener = new ValueEventListener() {
             @Override
@@ -94,16 +121,13 @@ public class NoiseActivity extends AppCompatActivity {
             int id = item.getItemId();
             if (id == R.id.nav_profile) {
                 startActivity(new Intent(this, ProfileActivity.class));
-                finish();
                 return true;
             } else if (id == R.id.nav_settings) {
                 startActivity(new Intent(this, SettingsActivity.class));
-                finish();
                 return true;
             }
             return id == R.id.nav_home;
         });
-
     }
 
     @Override
@@ -114,6 +138,9 @@ public class NoiseActivity extends AppCompatActivity {
             liveSensorsHandle = null;
         } else if (liveSensorsRef != null && liveSensorsListener != null) {
             liveSensorsRef.removeEventListener(liveSensorsListener);
+        }
+        if (userFavoritesRef != null && favoritesListener != null) {
+            userFavoritesRef.removeEventListener(favoritesListener);
         }
         for (RoomItem room : rooms) {
             if (room.sensorHandle != null) {
@@ -134,8 +161,7 @@ public class NoiseActivity extends AppCompatActivity {
             }
         }
 
-        Collections.sort(sensorKeys, Comparator.comparingInt(this::extractSensorIndex));
-
+        // We don't sort here anymore, we sort in sortRooms()
         List<String> keysToRemove = new ArrayList<>();
         for (String existingKey : roomBySensorKey.keySet()) {
             if (!sensorKeys.contains(existingKey)) {
@@ -171,7 +197,28 @@ public class NoiseActivity extends AppCompatActivity {
             }
         }
 
+        sortRooms();
         roomAdapter.notifyDataSetChanged();
+    }
+
+    private void sortRooms() {
+        Collections.sort(rooms, (r1, r2) -> {
+            boolean isFav1 = favoriteRooms.containsKey(r1.sensorKey);
+            boolean isFav2 = favoriteRooms.containsKey(r2.sensorKey);
+
+            if (isFav1 && !isFav2) return -1;
+            if (!isFav1 && isFav2) return 1;
+
+            if (isFav1 && isFav2) {
+                Long t1 = favoriteRooms.get(r1.sensorKey);
+                Long t2 = favoriteRooms.get(r2.sensorKey);
+                if (t1 != null && t2 != null) {
+                    return t1.compareTo(t2);
+                }
+            }
+
+            return Integer.compare(extractSensorIndex(r1.sensorKey), extractSensorIndex(r2.sensorKey));
+        });
     }
 
     private void attachSensorListener(RoomItem room) {
@@ -181,17 +228,7 @@ public class NoiseActivity extends AppCompatActivity {
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 if (!dataSnapshot.exists()) {
                     room.latestSoundLevel = Float.NaN;
-                    if (room.soundText != null) {
-                        room.soundText.setText(getString(R.string.room_sound_placeholder));
-                    }
-                    if (room.groupStatusText != null) {
-                        room.groupStatusText.setText(getString(R.string.room_group_status_waiting));
-                        room.groupStatusText.setTextColor(getResources().getColor(R.color.app_on_surface, getTheme()));
-                    }
-                    if (room.statusText != null) {
-                        room.statusText.setText(getString(R.string.room_status_waiting));
-                        room.statusText.setTextColor(getResources().getColor(R.color.app_on_surface, getTheme()));
-                    }
+                    updateRoomUi(room);
                     return;
                 }
 
@@ -199,60 +236,53 @@ public class NoiseActivity extends AppCompatActivity {
                     DataSnapshot valueSnapshot = dataSnapshot.child("value");
                     Object value = valueSnapshot.exists() ? valueSnapshot.getValue() : dataSnapshot.getValue();
                     if (value != null) {
-                        float soundLevel = Float.parseFloat(value.toString());
-                        room.latestSoundLevel = soundLevel;
-                        if (room.soundText != null) {
-                            room.soundText.setText(getString(R.string.room_sound_format, soundLevel));
-                        }
-                        if (room.speedView != null) {
-                            if (Float.isNaN(room.lastDisplayedSpeed)
-                                    || Math.abs(soundLevel - room.lastDisplayedSpeed) > 1.0f) {
-                                updateSpeedometerInstant(room.speedView, soundLevel);
-                                room.lastDisplayedSpeed = soundLevel;
-                            }
-                        }
-                        if (room.statusText != null) {
-                            applyStatusText(room.statusText, soundLevel);
-                        }
-                        if (room.groupStatusText != null) {
-                            applyGroupStatusText(room.groupStatusText, soundLevel);
-                        }
+                        room.latestSoundLevel = Float.parseFloat(value.toString());
+                        updateRoomUi(room);
                     }
                 } catch (Exception e) {
                     Log.e("NoiseActivity", "Error parsing " + room.sensorKey, e);
                     room.latestSoundLevel = Float.NaN;
-                    if (room.soundText != null) {
-                        room.soundText.setText(getString(R.string.room_sound_placeholder));
-                    }
-                    if (room.groupStatusText != null) {
-                        room.groupStatusText.setText(getString(R.string.room_group_status_error));
-                        room.groupStatusText.setTextColor(getResources().getColor(R.color.app_on_surface, getTheme()));
-                    }
-                    if (room.statusText != null) {
-                        room.statusText.setText(getString(R.string.room_status_error));
-                        room.statusText.setTextColor(getResources().getColor(R.color.white, getTheme()));
-                    }
+                    updateRoomUi(room);
                 }
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
                 room.latestSoundLevel = Float.NaN;
-                if (room.soundText != null) {
-                    room.soundText.setText(getString(R.string.room_sound_placeholder));
-                }
-                if (room.groupStatusText != null) {
-                    room.groupStatusText.setText(getString(R.string.room_group_status_error));
-                    room.groupStatusText.setTextColor(getResources().getColor(R.color.app_on_surface, getTheme()));
-                }
-                if (room.statusText != null) {
-                    room.statusText.setText(getString(R.string.room_status_error));
-                    room.statusText.setTextColor(getResources().getColor(R.color.white, getTheme()));
-                }
+                updateRoomUi(room);
             }
         };
         room.sensorRef.addValueEventListener(room.sensorListener);
         room.sensorHandle = FirebaseListenerRegistry.register(room.sensorRef, room.sensorListener);
+    }
+
+    private void updateRoomUi(RoomItem room) {
+        float soundLevel = room.latestSoundLevel;
+        if (room.soundText != null) {
+            room.soundText.setText(Float.isNaN(soundLevel) ? getString(R.string.room_sound_placeholder) : getString(R.string.room_sound_format, soundLevel));
+        }
+        if (room.speedView != null && !Float.isNaN(soundLevel)) {
+            if (Float.isNaN(room.lastDisplayedSpeed) || Math.abs(soundLevel - room.lastDisplayedSpeed) > 1.0f) {
+                updateSpeedometerInstant(room.speedView, soundLevel);
+                room.lastDisplayedSpeed = soundLevel;
+            }
+        }
+        if (room.statusText != null) {
+            if (Float.isNaN(soundLevel)) {
+                room.statusText.setText(getString(R.string.room_status_waiting));
+                room.statusText.setTextColor(getResources().getColor(R.color.app_on_surface, getTheme()));
+            } else {
+                applyStatusText(room.statusText, soundLevel);
+            }
+        }
+        if (room.groupStatusText != null) {
+            if (Float.isNaN(soundLevel)) {
+                room.groupStatusText.setText(getString(R.string.room_group_status_waiting));
+                room.groupStatusText.setTextColor(getResources().getColor(R.color.app_on_surface, getTheme()));
+            } else {
+                applyGroupStatusText(room.groupStatusText, soundLevel);
+            }
+        }
     }
 
     private String toRoomName(String sensorKey) {
@@ -263,13 +293,9 @@ public class NoiseActivity extends AppCompatActivity {
     }
 
     private int extractSensorIndex(String sensorKey) {
-        if (sensorKey == null) {
-            return Integer.MAX_VALUE;
-        }
+        if (sensorKey == null) return Integer.MAX_VALUE;
         int underscore = sensorKey.lastIndexOf('_');
-        if (underscore < 0 || underscore + 1 >= sensorKey.length()) {
-            return Integer.MAX_VALUE;
-        }
+        if (underscore < 0 || underscore + 1 >= sensorKey.length()) return Integer.MAX_VALUE;
         try {
             return Integer.parseInt(sensorKey.substring(underscore + 1));
         } catch (NumberFormatException ignored) {
@@ -279,123 +305,70 @@ public class NoiseActivity extends AppCompatActivity {
 
     private class RoomExpandableAdapter extends BaseExpandableListAdapter {
 
-        @Override
-        public int getGroupCount() {
-            return rooms.size();
-        }
-
-        @Override
-        public int getChildrenCount(int groupPosition) {
-            return 1;
-        }
-
-        @Override
-        public Object getGroup(int groupPosition) {
-            return rooms.get(groupPosition);
-        }
-
-        @Override
-        public Object getChild(int groupPosition, int childPosition) {
-            return "details";
-        }
-
-        @Override
-        public long getGroupId(int groupPosition) {
-            return groupPosition;
-        }
-
-        @Override
-        public long getChildId(int groupPosition, int childPosition) {
-            return groupPosition;
-        }
-
-        @Override
-        public boolean hasStableIds() {
-            return true;
-        }
+        @Override public int getGroupCount() { return rooms.size(); }
+        @Override public int getChildrenCount(int groupPosition) { return 1; }
+        @Override public Object getGroup(int groupPosition) { return rooms.get(groupPosition); }
+        @Override public Object getChild(int groupPosition, int childPosition) { return "details"; }
+        @Override public long getGroupId(int groupPosition) { return groupPosition; }
+        @Override public long getChildId(int groupPosition, int childPosition) { return groupPosition; }
+        @Override public boolean hasStableIds() { return true; }
 
         @Override
         public View getGroupView(int groupPosition, boolean isExpanded, View convertView, ViewGroup parent) {
             RoomItem room = rooms.get(groupPosition);
-            View view = convertView;
-            if (view == null) {
-                view = LayoutInflater.from(NoiseActivity.this)
-                        .inflate(R.layout.list_item_room_group, parent, false);
-            }
+            View view = convertView == null ? LayoutInflater.from(NoiseActivity.this).inflate(R.layout.list_item_room_group, parent, false) : convertView;
 
+            ImageView heartIcon = view.findViewById(R.id.heartIcon);
             TextView roomNameTv = view.findViewById(R.id.groupRoomName);
             TextView groupStatusTv = view.findViewById(R.id.groupRoomStatus);
 
-            int onSurface = getResources().getColor(R.color.app_on_surface, getTheme());
-            roomNameTv.setText(room.roomName);
-            roomNameTv.setTextColor(onSurface);
-            room.groupStatusText = groupStatusTv;
+            boolean isFavorite = favoriteRooms.containsKey(room.sensorKey);
+            heartIcon.setImageResource(isFavorite ? R.drawable.ic_heart_filled : R.drawable.ic_heart_border);
+            heartIcon.setOnClickListener(v -> toggleFavorite(room.sensorKey, isFavorite));
 
-            if (Float.isNaN(room.latestSoundLevel)) {
-                groupStatusTv.setText(getString(R.string.room_group_status_waiting));
-                groupStatusTv.setTextColor(onSurface);
-            } else {
-                applyGroupStatusText(groupStatusTv, room.latestSoundLevel);
-            }
+            roomNameTv.setText(room.roomName);
+            room.groupStatusText = groupStatusTv;
+            updateRoomUi(room);
 
             return view;
         }
 
-        @Override
-        public View getChildView(int groupPosition, int childPosition, boolean isLastChild,
-                View convertView, ViewGroup parent) {
-            RoomItem room = rooms.get(groupPosition);
-            View view = LayoutInflater.from(NoiseActivity.this)
-                    .inflate(R.layout.list_item_room_child, parent, false);
+        private void toggleFavorite(String sensorKey, boolean currentlyFavorite) {
+            if (userFavoritesRef == null) return;
+            if (currentlyFavorite) {
+                userFavoritesRef.child(sensorKey).removeValue();
+            } else {
+                userFavoritesRef.child(sensorKey).setValue(ServerValue.TIMESTAMP);
+            }
+        }
 
-            SpeedView sv = view.findViewById(R.id.childSpeedView);
-            TextView soundTv = view.findViewById(R.id.childSoundText);
-            TextView statusTv = view.findViewById(R.id.childStatusText);
+        @Override
+        public View getChildView(int groupPosition, int childPosition, boolean isLastChild, View convertView, ViewGroup parent) {
+            RoomItem room = rooms.get(groupPosition);
+            View view = LayoutInflater.from(NoiseActivity.this).inflate(R.layout.list_item_room_child, parent, false);
+
+            room.speedView = view.findViewById(R.id.childSpeedView);
+            room.soundText = view.findViewById(R.id.childSoundText);
+            room.statusText = view.findViewById(R.id.childStatusText);
             Button openRoomButton = view.findViewById(R.id.childOpenRoomButton);
 
-            sv.setMaxSpeed(120);
-            sv.setUnit("dB");
-            int onSurface = getResources().getColor(R.color.app_on_surface, getTheme());
-            sv.setTextColor(onSurface);
-            sv.setUnitTextColor(onSurface);
-            float strokePx = 6 * getResources().getDisplayMetrics().density;
-            sv.setSpeedometerWidth(strokePx);
-            sv.setSpeedTextSize(0);
-            sv.setUnitTextSize(dpToPx(10));
-            sv.setWithTremble(false);
+            room.speedView.setMaxSpeed(120);
+            room.speedView.setUnit("dB");
+            room.speedView.setSpeedTextSize(0);
+            room.speedView.setWithTremble(false);
 
-            room.speedView = sv;
-            room.soundText = soundTv;
-            room.statusText = statusTv;
             openRoomButton.setOnClickListener(v -> {
                 Intent roomIntent = new Intent(NoiseActivity.this, RoomActivity.class);
                 roomIntent.putExtra(RoomActivity.EXTRA_SENSOR_KEY, room.sensorKey);
                 roomIntent.putExtra(RoomActivity.EXTRA_ROOM_NAME, room.roomName);
                 startActivity(roomIntent);
             });
-            openRoomButton.setEnabled(true);
-            openRoomButton.setText(R.string.room_button_more_info);
 
-            float latest = room.latestSoundLevel;
-            if (Float.isNaN(latest)) {
-                soundTv.setText(R.string.room_sound_placeholder);
-                statusTv.setText(R.string.room_status_waiting);
-                statusTv.setTextColor(onSurface);
-                updateSpeedometerInstant(sv, 0f);
-            } else {
-                soundTv.setText(getString(R.string.room_sound_format, latest));
-                updateSpeedometerInstant(sv, latest);
-                room.lastDisplayedSpeed = latest;
-                applyStatusText(statusTv, latest);
-            }
-
+            updateRoomUi(room);
             return view;
         }
 
-        @Override
-        public boolean isChildSelectable(int groupPosition, int childPosition) {
-            return false;
-        }
+        @Override public boolean isChildSelectable(int groupPosition, int childPosition) { return false; }
     }
 
     private static class RoomItem {
@@ -447,24 +420,13 @@ public class NoiseActivity extends AppCompatActivity {
         speedView.speedTo(clampedLevel, 0);
     }
 
-    @Override
-    public boolean onCreateOptionsMenu(android.view.Menu menu) {
-        getMenuInflater().inflate(R.menu.menu_noiseactivity, menu);
-        return true;
-    }
+    @Override public boolean onCreateOptionsMenu(android.view.Menu menu) { getMenuInflater().inflate(R.menu.menu_noiseactivity, menu); return true; }
 
     @Override
     public boolean onOptionsItemSelected(android.view.MenuItem item) {
-        if (item.getItemId() == R.id.action_add) {
-            Toast.makeText(this, "Add device", Toast.LENGTH_SHORT).show();
-            return true;
-        }
+        if (item.getItemId() == R.id.action_add) { Toast.makeText(this, "Add device", Toast.LENGTH_SHORT).show(); return true; }
         return super.onOptionsItemSelected(item);
     }
 
-    @Override
-    public boolean onSupportNavigateUp() {
-        finish();
-        return true;
-    }
+    @Override public boolean onSupportNavigateUp() { finish(); return true; }
 }
