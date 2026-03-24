@@ -19,13 +19,13 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
-import com.github.mikephil.charting.charts.BarChart;
+import com.github.mikephil.charting.charts.LineChart;
 import com.github.mikephil.charting.components.Description;
 import com.github.mikephil.charting.components.Legend;
 import com.github.mikephil.charting.components.XAxis;
-import com.github.mikephil.charting.data.BarData;
-import com.github.mikephil.charting.data.BarDataSet;
-import com.github.mikephil.charting.data.BarEntry;
+import com.github.mikephil.charting.data.LineData;
+import com.github.mikephil.charting.data.LineDataSet;
+import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.formatter.ValueFormatter;
 import com.github.mikephil.charting.listener.ChartTouchListener;
 import com.github.mikephil.charting.listener.OnChartGestureListener;
@@ -57,9 +57,9 @@ public class RoomActivity extends AppCompatActivity {
     public static final String EXTRA_SENSOR_KEY = "extra_sensor_key";
     public static final String EXTRA_ROOM_NAME = "extra_room_name";
 
-    private static final float CHART_MIN_VISIBLE_WINDOW_SECONDS = 10f * 60f;
-    private static final float CHART_MAX_VISIBLE_WINDOW_SECONDS = 60f * 60f;
-    private static final float TARGET_BAR_WIDTH_PX = 5f;
+    private static final float CHART_MIN_VISIBLE_WINDOW_SECONDS = 20f * 60f;
+    private static final float CHART_MAX_VISIBLE_WINDOW_SECONDS = 40f * 60f;
+    private static final float TARGET_BAR_WIDTH_PX = 10f;
     private static final int MAX_LIST_ROWS = 3000;
     private static final int MAX_RAW_READINGS = 300;
     private static final Pattern UTC_OFFSET_PATTERN = Pattern.compile("^(.*)\\sUTC([+-]\\d{1,2})(?::?(\\d{2}))?$");
@@ -82,7 +82,7 @@ public class RoomActivity extends AppCompatActivity {
     private final List<SoundReading> liveReadings = new ArrayList<>();
     private final List<SoundReading> soundReadings = new ArrayList<>();
 
-    private BarChart historyChart;
+    private LineChart historyChart;
     private TextView chartDateLabel;
     private TextView speedLabel;
     private TextView soundText;
@@ -96,6 +96,9 @@ public class RoomActivity extends AppCompatActivity {
     private ValueEventListener liveSensorListener;
     private float latestLiveValue = Float.NaN;
     private long latestLiveTimestampMs = 0L;
+
+    private static final long BUCKET_SIZE_MS = 5L * 60L * 1000L;
+    private final List<SoundReading> bucketedReadings = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -154,6 +157,37 @@ public class RoomActivity extends AppCompatActivity {
         readingsList.setAdapter(listAdapter);
         fetchFirestoreReadingsOnce(sensorKey);
         attachLiveSensorListener(sensorKey);
+    }
+
+    private List<SoundReading> bucketReadings(List<SoundReading> readings) {
+        if (readings.isEmpty())
+            return new ArrayList<>();
+
+        // Use a LinkedHashMap keyed by bucket-floor so insertion order is
+        // chronological.
+        Map<Long, float[]> buckets = new LinkedHashMap<>(); // key → [sum, count]
+
+        for (SoundReading r : readings) {
+            long floor = (r.timestampMs / BUCKET_SIZE_MS) * BUCKET_SIZE_MS;
+            float[] acc = buckets.get(floor);
+            if (acc == null) {
+                acc = new float[] { 0f, 0f };
+                buckets.put(floor, acc);
+            }
+            acc[0] += r.value;
+            acc[1] += 1f;
+        }
+
+        List<SoundReading> bucketed = new ArrayList<>(buckets.size());
+        for (Map.Entry<Long, float[]> entry : buckets.entrySet()) {
+            long centerMs = entry.getKey() + BUCKET_SIZE_MS / 2; // label at :02:30, :07:30 …
+            float avg = entry.getValue()[0] / entry.getValue()[1];
+            bucketed.add(new SoundReading(centerMs, avg, false));
+        }
+
+        // Ensure ascending order for the chart.
+        Collections.sort(bucketed, (a, b) -> Long.compare(a.timestampMs, b.timestampMs));
+        return bucketed;
     }
 
     private void fetchFirestoreReadingsOnce(String sensorKey) {
@@ -338,6 +372,7 @@ public class RoomActivity extends AppCompatActivity {
             @Override
             public void onChartScale(MotionEvent me, float scaleX, float scaleY) {
                 updateChartDateLabel();
+                // updateBarWidth();
             }
 
             @Override
@@ -348,7 +383,7 @@ public class RoomActivity extends AppCompatActivity {
     }
 
     private void renderChart() {
-        List<BarEntry> entries = buildBarEntriesFromReadings();
+        List<Entry> entries = buildLineEntriesFromReadings();
 
         if (entries.isEmpty()) {
             historyChart.clear();
@@ -362,27 +397,22 @@ public class RoomActivity extends AppCompatActivity {
         xAxis.setAxisMaximum(axisMaxSeconds);
         xAxis.setGranularity(calculateXAxisGranularity(axisMaxSeconds));
 
-        BarDataSet dataSet = new BarDataSet(entries, "Noise (dB)");
+        LineDataSet dataSet = new LineDataSet(entries, "Noise (dB)");
         int lineColor = getResources().getColor(R.color.status_moderate, getTheme());
         dataSet.setColor(lineColor);
         dataSet.setDrawValues(false);
-        dataSet.setValueTextColor(lineColor);
-        dataSet.setValueTextSize(10f);
-        dataSet.setHighLightAlpha(100);
+        dataSet.setDrawCircles(true);
+        dataSet.setCircleRadius(4f);
+        dataSet.setCircleColor(lineColor);
+        dataSet.setDrawCircleHole(true);
+        dataSet.setLineWidth(2f); // line thickness
+        dataSet.setMode(LineDataSet.Mode.CUBIC_BEZIER); // smooth wave shape
+        dataSet.setDrawFilled(true); // fill area under the line
+        dataSet.setFillColor(lineColor);
+        dataSet.setFillAlpha(50); // transparency of fill (0-255)
 
-        BarData barData = new BarData(dataSet);
-        float contentWidthPx = historyChart.getViewPortHandler().contentWidth();
-        float barWidthInXAxisUnits;
-        if (contentWidthPx > 0f) {
-            float unitsPerPx = axisMaxSeconds / contentWidthPx;
-            barWidthInXAxisUnits = Math.max(0.5f, unitsPerPx * TARGET_BAR_WIDTH_PX);
-        } else {
-            // Fallback before first layout pass.
-            float granularity = calculateXAxisGranularity(axisMaxSeconds);
-            barWidthInXAxisUnits = Math.max(0.5f, granularity * 0.1f);
-        }
-        barData.setBarWidth(barWidthInXAxisUnits);
-        historyChart.setData(barData);
+        LineData lineData = new LineData(dataSet);
+        historyChart.setData(lineData);
 
         float visibleWindow = Math.min(axisMaxSeconds, CHART_MAX_VISIBLE_WINDOW_SECONDS);
         visibleWindow = Math.max(visibleWindow, CHART_MIN_VISIBLE_WINDOW_SECONDS);
@@ -392,7 +422,7 @@ public class RoomActivity extends AppCompatActivity {
         historyChart.post(this::updateChartDateLabel);
     }
 
-    private List<BarEntry> buildBarEntriesFromReadings() {
+    private List<Entry> buildLineEntriesFromReadings() {
         if (soundReadings.isEmpty()) {
             chartMinTimestampMs = 0L;
             chartRangeMs = 0L;
@@ -401,20 +431,20 @@ public class RoomActivity extends AppCompatActivity {
 
         List<SoundReading> sortedAsc = new ArrayList<>(soundReadings);
         Collections.sort(sortedAsc, (a, b) -> Long.compare(a.timestampMs, b.timestampMs));
+        List<SoundReading> bucketed = bucketReadings(sortedAsc);
 
-        long minTs = sortedAsc.get(0).timestampMs;
-        long maxTs = sortedAsc.get(sortedAsc.size() - 1).timestampMs;
-        if (maxTs <= minTs) {
+        long minTs = bucketed.get(0).timestampMs;
+        long maxTs = bucketed.get(bucketed.size() - 1).timestampMs;
+        if (maxTs <= minTs)
             maxTs = minTs + 1000L;
-        }
 
         chartMinTimestampMs = minTs;
         chartRangeMs = maxTs - minTs;
 
-        List<BarEntry> entries = new ArrayList<>(sortedAsc.size());
-        for (SoundReading reading : sortedAsc) {
+        List<Entry> entries = new ArrayList<>(bucketed.size());
+        for (SoundReading reading : bucketed) {
             float xSeconds = (reading.timestampMs - minTs) / 1000f;
-            entries.add(new BarEntry(xSeconds, reading.value));
+            entries.add(new Entry(xSeconds, reading.value));
         }
         return entries;
     }
@@ -456,6 +486,15 @@ public class RoomActivity extends AppCompatActivity {
 
         Collections.sort(soundReadings, (a, b) -> Long.compare(b.timestampMs, a.timestampMs));
         trimReadings();
+
+        // ── NEW: rebuild bucketed list for the UI table ──
+        List<SoundReading> sortedAsc = new ArrayList<>(soundReadings);
+        Collections.sort(sortedAsc, (a, b) -> Long.compare(a.timestampMs, b.timestampMs));
+        bucketedReadings.clear();
+        bucketedReadings.addAll(bucketReadings(sortedAsc));
+        // Sort descending so newest row is at top of list
+        Collections.sort(bucketedReadings, (a, b) -> Long.compare(b.timestampMs, a.timestampMs));
+        // ─────────────────────────────────────────────────
     }
 
     private void appendLiveReading(float value, long timestampMs) {
@@ -679,14 +718,13 @@ public class RoomActivity extends AppCompatActivity {
     private final class ReadingsTableAdapter extends BaseAdapter {
         private final LayoutInflater inflater = LayoutInflater.from(RoomActivity.this);
 
-        @Override
         public int getCount() {
-            return Math.min(soundReadings.size(), MAX_LIST_ROWS);
+            return Math.min(bucketedReadings.size(), MAX_LIST_ROWS);
         }
 
         @Override
         public Object getItem(int position) {
-            return soundReadings.get(position);
+            return bucketedReadings.get(position);
         }
 
         @Override
@@ -701,7 +739,7 @@ public class RoomActivity extends AppCompatActivity {
                 rowView = inflater.inflate(R.layout.list_item_reading_row, parent, false);
             }
 
-            SoundReading row = soundReadings.get(position);
+            SoundReading row = bucketedReadings.get(position);
             TextView timeCell = rowView.findViewById(R.id.timeCell);
             TextView valueCell = rowView.findViewById(R.id.valueCell);
             TextView statusCell = rowView.findViewById(R.id.statusCell);
