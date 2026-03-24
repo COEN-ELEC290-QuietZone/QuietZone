@@ -2,6 +2,7 @@ package com.example.quietzone_app;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.activity.EdgeToEdge;
@@ -15,9 +16,16 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.*;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+
 public class ProfileActivity extends AppCompatActivity {
 
     private TextView nameText, emailText, roomsText;
+    private DatabaseReference userFavoritesRef;
+    private ValueEventListener favoritesListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -25,14 +33,12 @@ public class ProfileActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_profile);
 
-        // Handle screen padding for modern displays
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
 
-        // Toolbar setup
         Toolbar myToolbar = findViewById(R.id.my_toolbar);
         setSupportActionBar(myToolbar);
         if (getSupportActionBar() != null) {
@@ -54,10 +60,10 @@ public class ProfileActivity extends AppCompatActivity {
             int id = item.getItemId();
             if (id == R.id.nav_home) {
                 startActivity(new Intent(this, NoiseActivity.class));
-                finish(); return true;
+                return true;
             } else if (id == R.id.nav_settings) {
                 startActivity(new Intent(this, SettingsActivity.class));
-                finish(); return true;
+                return true;
             }
             return id == R.id.nav_profile;
         });
@@ -69,21 +75,63 @@ public class ProfileActivity extends AppCompatActivity {
             emailText.setText(user.getEmail());
             nameText.setText(user.getDisplayName() != null ? user.getDisplayName() : "User");
 
-            DatabaseReference ref = FirebaseDatabase.getInstance().getReference()
-                    .child("users").child(user.getUid()).child("saved_rooms");
-            ref.addListenerForSingleValueEvent(new ValueEventListener() {
+            userFavoritesRef = FirebaseDatabase.getInstance().getReference("users")
+                    .child(user.getUid()).child("favorites");
+
+            favoritesListener = new ValueEventListener() {
                 @Override
                 public void onDataChange(@NonNull DataSnapshot snapshot) {
                     if (snapshot.exists()) {
+                        List<FavoriteItem> favorites = new ArrayList<>();
+                        for (DataSnapshot child : snapshot.getChildren()) {
+                            String sensorKey = child.getKey();
+                            Long timestamp = child.getValue(Long.class);
+                            if (sensorKey != null && timestamp != null) {
+                                favorites.add(new FavoriteItem(sensorKey, timestamp));
+                            }
+                        }
+
+                        // Sort by timestamp (the order they were favorited)
+                        Collections.sort(favorites, (f1, f2) -> f1.timestamp.compareTo(f2.timestamp));
+
                         StringBuilder sb = new StringBuilder();
-                        for (DataSnapshot ds : snapshot.getChildren()) {
-                            sb.append("• ").append(ds.getValue()).append("\n");
+                        for (FavoriteItem fav : favorites) {
+                            sb.append("• ").append(toRoomName(fav.sensorKey)).append("\n");
                         }
                         roomsText.setText(sb.toString().trim());
+                    } else {
+                        roomsText.setText("No favorite rooms yet.");
                     }
                 }
-                @Override public void onCancelled(@NonNull DatabaseError error) {}
-            });
+
+                @Override
+                public void onCancelled(@NonNull DatabaseError error) {
+                    Log.e("ProfileActivity", "Error loading favorites", error.toException());
+                }
+            };
+            userFavoritesRef.addValueEventListener(favoritesListener);
+        }
+    }
+
+    private String toRoomName(String sensorKey) {
+        return getString(R.string.room_name_format, sensorKey);
+    }
+
+    private static class FavoriteItem {
+        String sensorKey;
+        Long timestamp;
+
+        FavoriteItem(String sensorKey, Long timestamp) {
+            this.sensorKey = sensorKey;
+            this.timestamp = timestamp;
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (userFavoritesRef != null && favoritesListener != null) {
+            userFavoritesRef.removeEventListener(favoritesListener);
         }
     }
 }

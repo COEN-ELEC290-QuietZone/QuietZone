@@ -9,6 +9,14 @@
     android:paddingEnd="20dp"
     android:paddingBottom="16dp">
 
+    <ImageView
+        android:id="@+id/heartIcon"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginEnd="12dp"
+        android:contentDescription="Favorite"
+        android:src="@drawable/ic_heart_border" />
+
     <TextView
         android:id="@+id/groupRoomName"
         android:layout_width="0dp"
