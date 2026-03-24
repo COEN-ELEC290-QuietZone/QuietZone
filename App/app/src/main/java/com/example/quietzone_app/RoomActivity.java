@@ -19,13 +19,13 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
-import com.github.mikephil.charting.charts.BarChart;
+import com.github.mikephil.charting.charts.LineChart;
 import com.github.mikephil.charting.components.Description;
 import com.github.mikephil.charting.components.Legend;
 import com.github.mikephil.charting.components.XAxis;
-import com.github.mikephil.charting.data.BarData;
-import com.github.mikephil.charting.data.BarDataSet;
-import com.github.mikephil.charting.data.BarEntry;
+import com.github.mikephil.charting.data.LineData;
+import com.github.mikephil.charting.data.LineDataSet;
+import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.formatter.ValueFormatter;
 import com.github.mikephil.charting.listener.ChartTouchListener;
 import com.github.mikephil.charting.listener.OnChartGestureListener;
@@ -57,9 +57,9 @@ public class RoomActivity extends AppCompatActivity {
     public static final String EXTRA_SENSOR_KEY = "extra_sensor_key";
     public static final String EXTRA_ROOM_NAME = "extra_room_name";
 
-    private static final float CHART_MIN_VISIBLE_WINDOW_SECONDS = 10f * 60f;
-    private static final float CHART_MAX_VISIBLE_WINDOW_SECONDS = 60f * 60f;
-    private static final float TARGET_BAR_WIDTH_PX = 50f;
+    private static final float CHART_MIN_VISIBLE_WINDOW_SECONDS = 20f * 60f;
+    private static final float CHART_MAX_VISIBLE_WINDOW_SECONDS = 40f * 60f;
+    private static final float TARGET_BAR_WIDTH_PX = 10f;
     private static final int MAX_LIST_ROWS = 3000;
     private static final int MAX_RAW_READINGS = 300;
     private static final Pattern UTC_OFFSET_PATTERN = Pattern.compile("^(.*)\\sUTC([+-]\\d{1,2})(?::?(\\d{2}))?$");
@@ -82,7 +82,7 @@ public class RoomActivity extends AppCompatActivity {
     private final List<SoundReading> liveReadings = new ArrayList<>();
     private final List<SoundReading> soundReadings = new ArrayList<>();
 
-    private BarChart historyChart;
+    private LineChart historyChart;
     private TextView chartDateLabel;
     private TextView speedLabel;
     private TextView soundText;
@@ -157,22 +157,6 @@ public class RoomActivity extends AppCompatActivity {
         readingsList.setAdapter(listAdapter);
         fetchFirestoreReadingsOnce(sensorKey);
         attachLiveSensorListener(sensorKey);
-    }
-
-    private void updateBarWidth() {
-        if (historyChart.getData() == null)
-            return;
-
-        float contentWidthPx = historyChart.getViewPortHandler().contentWidth();
-        float visibleRange = historyChart.getVisibleXRange();
-        if (contentWidthPx <= 0f || visibleRange <= 0f)
-            return;
-
-        float unitsPerPx = visibleRange / contentWidthPx;
-        float newBarWidth = Math.max(0.5f, unitsPerPx * TARGET_BAR_WIDTH_PX);
-
-        historyChart.getData().setBarWidth(newBarWidth);
-        historyChart.invalidate();
     }
 
     private List<SoundReading> bucketReadings(List<SoundReading> readings) {
@@ -388,7 +372,7 @@ public class RoomActivity extends AppCompatActivity {
             @Override
             public void onChartScale(MotionEvent me, float scaleX, float scaleY) {
                 updateChartDateLabel();
-                updateBarWidth();
+                // updateBarWidth();
             }
 
             @Override
@@ -399,7 +383,7 @@ public class RoomActivity extends AppCompatActivity {
     }
 
     private void renderChart() {
-        List<BarEntry> entries = buildBarEntriesFromReadings();
+        List<Entry> entries = buildLineEntriesFromReadings();
 
         if (entries.isEmpty()) {
             historyChart.clear();
@@ -413,27 +397,22 @@ public class RoomActivity extends AppCompatActivity {
         xAxis.setAxisMaximum(axisMaxSeconds);
         xAxis.setGranularity(calculateXAxisGranularity(axisMaxSeconds));
 
-        BarDataSet dataSet = new BarDataSet(entries, "Noise (dB)");
+        LineDataSet dataSet = new LineDataSet(entries, "Noise (dB)");
         int lineColor = getResources().getColor(R.color.status_moderate, getTheme());
         dataSet.setColor(lineColor);
         dataSet.setDrawValues(false);
-        dataSet.setValueTextColor(lineColor);
-        dataSet.setValueTextSize(10f);
-        dataSet.setHighLightAlpha(100);
+        dataSet.setDrawCircles(true);
+        dataSet.setCircleRadius(4f);
+        dataSet.setCircleColor(lineColor);
+        dataSet.setDrawCircleHole(true);
+        dataSet.setLineWidth(2f); // line thickness
+        dataSet.setMode(LineDataSet.Mode.CUBIC_BEZIER); // smooth wave shape
+        dataSet.setDrawFilled(true); // fill area under the line
+        dataSet.setFillColor(lineColor);
+        dataSet.setFillAlpha(50); // transparency of fill (0-255)
 
-        BarData barData = new BarData(dataSet);
-        float contentWidthPx = historyChart.getViewPortHandler().contentWidth();
-        float barWidthInXAxisUnits;
-        if (contentWidthPx > 0f) {
-            float unitsPerPx = axisMaxSeconds / contentWidthPx;
-            barWidthInXAxisUnits = Math.max(0.5f, unitsPerPx * TARGET_BAR_WIDTH_PX);
-        } else {
-            // Fallback before first layout pass.
-            float granularity = calculateXAxisGranularity(axisMaxSeconds);
-            barWidthInXAxisUnits = Math.max(0.5f, granularity * 0.1f);
-        }
-        barData.setBarWidth(barWidthInXAxisUnits);
-        historyChart.setData(barData);
+        LineData lineData = new LineData(dataSet);
+        historyChart.setData(lineData);
 
         float visibleWindow = Math.min(axisMaxSeconds, CHART_MAX_VISIBLE_WINDOW_SECONDS);
         visibleWindow = Math.max(visibleWindow, CHART_MIN_VISIBLE_WINDOW_SECONDS);
@@ -443,32 +422,29 @@ public class RoomActivity extends AppCompatActivity {
         historyChart.post(this::updateChartDateLabel);
     }
 
-    private List<BarEntry> buildBarEntriesFromReadings() {
+    private List<Entry> buildLineEntriesFromReadings() {
         if (soundReadings.isEmpty()) {
             chartMinTimestampMs = 0L;
             chartRangeMs = 0L;
             return new ArrayList<>();
         }
 
-        // ── NEW: collapse raw readings into 5-minute averaged buckets ──
         List<SoundReading> sortedAsc = new ArrayList<>(soundReadings);
         Collections.sort(sortedAsc, (a, b) -> Long.compare(a.timestampMs, b.timestampMs));
         List<SoundReading> bucketed = bucketReadings(sortedAsc);
-        // ────────────────────────────────────────────────────────────────
 
         long minTs = bucketed.get(0).timestampMs;
         long maxTs = bucketed.get(bucketed.size() - 1).timestampMs;
-        if (maxTs <= minTs) {
+        if (maxTs <= minTs)
             maxTs = minTs + 1000L;
-        }
 
         chartMinTimestampMs = minTs;
         chartRangeMs = maxTs - minTs;
 
-        List<BarEntry> entries = new ArrayList<>(bucketed.size());
+        List<Entry> entries = new ArrayList<>(bucketed.size());
         for (SoundReading reading : bucketed) {
             float xSeconds = (reading.timestampMs - minTs) / 1000f;
-            entries.add(new BarEntry(xSeconds, reading.value));
+            entries.add(new Entry(xSeconds, reading.value));
         }
         return entries;
     }
