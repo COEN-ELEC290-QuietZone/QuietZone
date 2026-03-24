@@ -59,7 +59,7 @@ public class RoomActivity extends AppCompatActivity {
 
     private static final float CHART_MIN_VISIBLE_WINDOW_SECONDS = 10f * 60f;
     private static final float CHART_MAX_VISIBLE_WINDOW_SECONDS = 60f * 60f;
-    private static final float TARGET_BAR_WIDTH_PX = 5f;
+    private static final float TARGET_BAR_WIDTH_PX = 50f;
     private static final int MAX_LIST_ROWS = 3000;
     private static final int MAX_RAW_READINGS = 300;
     private static final Pattern UTC_OFFSET_PATTERN = Pattern.compile("^(.*)\\sUTC([+-]\\d{1,2})(?::?(\\d{2}))?$");
@@ -96,6 +96,9 @@ public class RoomActivity extends AppCompatActivity {
     private ValueEventListener liveSensorListener;
     private float latestLiveValue = Float.NaN;
     private long latestLiveTimestampMs = 0L;
+
+    private static final long BUCKET_SIZE_MS = 5L * 60L * 1000L;
+    private final List<SoundReading> bucketedReadings = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -154,6 +157,53 @@ public class RoomActivity extends AppCompatActivity {
         readingsList.setAdapter(listAdapter);
         fetchFirestoreReadingsOnce(sensorKey);
         attachLiveSensorListener(sensorKey);
+    }
+
+    private void updateBarWidth() {
+        if (historyChart.getData() == null)
+            return;
+
+        float contentWidthPx = historyChart.getViewPortHandler().contentWidth();
+        float visibleRange = historyChart.getVisibleXRange();
+        if (contentWidthPx <= 0f || visibleRange <= 0f)
+            return;
+
+        float unitsPerPx = visibleRange / contentWidthPx;
+        float newBarWidth = Math.max(0.5f, unitsPerPx * TARGET_BAR_WIDTH_PX);
+
+        historyChart.getData().setBarWidth(newBarWidth);
+        historyChart.invalidate();
+    }
+
+    private List<SoundReading> bucketReadings(List<SoundReading> readings) {
+        if (readings.isEmpty())
+            return new ArrayList<>();
+
+        // Use a LinkedHashMap keyed by bucket-floor so insertion order is
+        // chronological.
+        Map<Long, float[]> buckets = new LinkedHashMap<>(); // key → [sum, count]
+
+        for (SoundReading r : readings) {
+            long floor = (r.timestampMs / BUCKET_SIZE_MS) * BUCKET_SIZE_MS;
+            float[] acc = buckets.get(floor);
+            if (acc == null) {
+                acc = new float[] { 0f, 0f };
+                buckets.put(floor, acc);
+            }
+            acc[0] += r.value;
+            acc[1] += 1f;
+        }
+
+        List<SoundReading> bucketed = new ArrayList<>(buckets.size());
+        for (Map.Entry<Long, float[]> entry : buckets.entrySet()) {
+            long centerMs = entry.getKey() + BUCKET_SIZE_MS / 2; // label at :02:30, :07:30 …
+            float avg = entry.getValue()[0] / entry.getValue()[1];
+            bucketed.add(new SoundReading(centerMs, avg, false));
+        }
+
+        // Ensure ascending order for the chart.
+        Collections.sort(bucketed, (a, b) -> Long.compare(a.timestampMs, b.timestampMs));
+        return bucketed;
     }
 
     private void fetchFirestoreReadingsOnce(String sensorKey) {
@@ -338,6 +388,7 @@ public class RoomActivity extends AppCompatActivity {
             @Override
             public void onChartScale(MotionEvent me, float scaleX, float scaleY) {
                 updateChartDateLabel();
+                updateBarWidth();
             }
 
             @Override
@@ -399,11 +450,14 @@ public class RoomActivity extends AppCompatActivity {
             return new ArrayList<>();
         }
 
+        // ── NEW: collapse raw readings into 5-minute averaged buckets ──
         List<SoundReading> sortedAsc = new ArrayList<>(soundReadings);
         Collections.sort(sortedAsc, (a, b) -> Long.compare(a.timestampMs, b.timestampMs));
+        List<SoundReading> bucketed = bucketReadings(sortedAsc);
+        // ────────────────────────────────────────────────────────────────
 
-        long minTs = sortedAsc.get(0).timestampMs;
-        long maxTs = sortedAsc.get(sortedAsc.size() - 1).timestampMs;
+        long minTs = bucketed.get(0).timestampMs;
+        long maxTs = bucketed.get(bucketed.size() - 1).timestampMs;
         if (maxTs <= minTs) {
             maxTs = minTs + 1000L;
         }
@@ -411,8 +465,8 @@ public class RoomActivity extends AppCompatActivity {
         chartMinTimestampMs = minTs;
         chartRangeMs = maxTs - minTs;
 
-        List<BarEntry> entries = new ArrayList<>(sortedAsc.size());
-        for (SoundReading reading : sortedAsc) {
+        List<BarEntry> entries = new ArrayList<>(bucketed.size());
+        for (SoundReading reading : bucketed) {
             float xSeconds = (reading.timestampMs - minTs) / 1000f;
             entries.add(new BarEntry(xSeconds, reading.value));
         }
@@ -456,6 +510,15 @@ public class RoomActivity extends AppCompatActivity {
 
         Collections.sort(soundReadings, (a, b) -> Long.compare(b.timestampMs, a.timestampMs));
         trimReadings();
+
+        // ── NEW: rebuild bucketed list for the UI table ──
+        List<SoundReading> sortedAsc = new ArrayList<>(soundReadings);
+        Collections.sort(sortedAsc, (a, b) -> Long.compare(a.timestampMs, b.timestampMs));
+        bucketedReadings.clear();
+        bucketedReadings.addAll(bucketReadings(sortedAsc));
+        // Sort descending so newest row is at top of list
+        Collections.sort(bucketedReadings, (a, b) -> Long.compare(b.timestampMs, a.timestampMs));
+        // ─────────────────────────────────────────────────
     }
 
     private void appendLiveReading(float value, long timestampMs) {
@@ -679,14 +742,13 @@ public class RoomActivity extends AppCompatActivity {
     private final class ReadingsTableAdapter extends BaseAdapter {
         private final LayoutInflater inflater = LayoutInflater.from(RoomActivity.this);
 
-        @Override
         public int getCount() {
-            return Math.min(soundReadings.size(), MAX_LIST_ROWS);
+            return Math.min(bucketedReadings.size(), MAX_LIST_ROWS);
         }
 
         @Override
         public Object getItem(int position) {
-            return soundReadings.get(position);
+            return bucketedReadings.get(position);
         }
 
         @Override
@@ -701,7 +763,7 @@ public class RoomActivity extends AppCompatActivity {
                 rowView = inflater.inflate(R.layout.list_item_reading_row, parent, false);
             }
 
-            SoundReading row = soundReadings.get(position);
+            SoundReading row = bucketedReadings.get(position);
             TextView timeCell = rowView.findViewById(R.id.timeCell);
             TextView valueCell = rowView.findViewById(R.id.valueCell);
             TextView statusCell = rowView.findViewById(R.id.statusCell);
