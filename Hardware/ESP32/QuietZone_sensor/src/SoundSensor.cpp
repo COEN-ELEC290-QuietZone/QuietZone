@@ -81,7 +81,7 @@ float SoundSensor::readSoundLevel()
 
 bool SoundSensor::isSoundDetected()
 {
-    return readRMSValue() > 12.0f;
+    return readRMSValue() > 2.0f;
 }
 
 String SoundSensor::getStatus()
