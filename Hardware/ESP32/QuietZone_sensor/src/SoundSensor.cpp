@@ -62,17 +62,8 @@ float SoundSensor::readRMSValue()
 float SoundSensor::readSoundLevel()
 {
     float rmsValue = readRMSValue();
-
-    // if (rmsValue <= 3.0f)
-    // {
-    //     return -80.0f;
-    // }
-
-    // Convert RMS ADC counts to voltage
     float rmsVolts = rmsValue * VOLTS_PER_COUNT;
 
-    // dB SPL = 20 * log10(Vrms / Vref) + sensitivity_compensation + calibration
-    // Using 1V as dBV reference and MAX9814 sensitivity
     float dbv = 20.0f * log10f(rmsVolts);
     float dbSPL = dbv - MAX9814_SENSITIVITY_DB + CALIBRATION_OFFSET;
 
@@ -94,7 +85,7 @@ String SoundSensor::getStatus()
     }
     if (rmsValue < 38.0f)
     {
-        return "Moderate";
+        return "Medium";
     }
 
     return "Loud";
