@@ -59,9 +59,9 @@ public class RoomActivity extends AppCompatActivity {
     public static final String EXTRA_SENSOR_KEY = "extra_sensor_key";
     public static final String EXTRA_ROOM_NAME = "extra_room_name";
 
-    private static final float CHART_MIN_VISIBLE_WINDOW_SECONDS = 20f * 60f;
-    private static final float CHART_MAX_VISIBLE_WINDOW_SECONDS = 40f * 60f;
-    private static final float TARGET_BAR_WIDTH_PX = 10f;
+    private static final float CHART_MIN_VISIBLE_WINDOW_SECONDS = 10f * 60f;
+    private static final float CHART_MAX_VISIBLE_WINDOW_SECONDS = 60f * 60f;
+    private static final float TARGET_BAR_WIDTH_PX = 50f;
     private static final int MAX_LIST_ROWS = 3000;
     private static final int MAX_RAW_READINGS = 50000; // Increased since we're paginating
     private static final Pattern UTC_OFFSET_PATTERN = Pattern.compile("^(.*)\\sUTC([+-]\\d{1,2})(?::?(\\d{2}))?$");
@@ -186,6 +186,22 @@ public class RoomActivity extends AppCompatActivity {
 
         fetchFirestoreReadingsOnce();
         attachLiveSensorListener(sensorKey);
+    }
+
+    private void updateBarWidth() {
+        if (historyChart.getData() == null)
+            return;
+
+        float contentWidthPx = historyChart.getViewPortHandler().contentWidth();
+        float visibleRange = historyChart.getVisibleXRange();
+        if (contentWidthPx <= 0f || visibleRange <= 0f)
+            return;
+
+        float unitsPerPx = visibleRange / contentWidthPx;
+        float newBarWidth = Math.max(0.5f, unitsPerPx * TARGET_BAR_WIDTH_PX);
+
+        historyChart.getData().setBarWidth(newBarWidth);
+        historyChart.invalidate();
     }
 
     private List<SoundReading> bucketReadings(List<SoundReading> readings) {
@@ -529,6 +545,27 @@ public class RoomActivity extends AppCompatActivity {
             }
             return entries;
         }
+
+        // ── NEW: collapse raw readings into 5-minute averaged buckets ──
+        List<SoundReading> sortedAsc = new ArrayList<>(soundReadings);
+        Collections.sort(sortedAsc, (a, b) -> Long.compare(a.timestampMs, b.timestampMs));
+        List<SoundReading> bucketed = bucketReadings(sortedAsc);
+        // ────────────────────────────────────────────────────────────────
+
+        long minTs = bucketed.get(0).timestampMs;
+        long maxTs = bucketed.get(bucketed.size() - 1).timestampMs;
+        if (maxTs <= minTs) {
+            maxTs = minTs + 1000L;
+
+        chartMinTimestampMs = minTs;
+        chartRangeMs = maxTs - minTs;
+
+        List<BarEntry> entries = new ArrayList<>(bucketed.size());
+        for (SoundReading reading : bucketed) {
+            float xSeconds = (reading.timestampMs - minTs) / 1000f;
+            entries.add(new Entry(xSeconds, reading.value));
+        }
+        return entries;
     }
 
     private float calculateXAxisGranularity(float axisRangeSeconds) {
