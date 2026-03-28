@@ -1,7 +1,7 @@
 #include "MQTTClient.h"
-const char *MQTTClientManager::ssid = "dlink-6E87";
-const char *MQTTClientManager::password = "ahaph96699";
-const char *MQTTClientManager::mqttServer = "192.168.100.102";
+const char *MQTTClientManager::ssid = "Your_SSID";
+const char *MQTTClientManager::password = "Your_PASSWORD";
+const char *MQTTClientManager::mqtt_server = "IP_ADDRESS";
 const char *MQTTClientManager::sensorId = "esp8266_sensor_01";
 const char *MQTTClientManager::sensorName = "Sensor 1 ESP8266";
 

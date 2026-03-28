@@ -17,7 +17,7 @@ private:
     static const char *mqttServer;
     static const char *sensorId;
     static const char *sensorName;
-    static const unsigned long publishInterval = 5000;
+    static const unsigned long publishInterval = 500;
 
 public:
     MQTTClientManager();
