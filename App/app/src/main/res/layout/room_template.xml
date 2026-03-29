@@ -57,6 +57,20 @@
         app:layout_constraintTop_toBottomOf="@id/chartDateLabel" />
 
     <TextView
+        android:id="@+id/chartPointInfo"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:padding="12dp"
+        android:background="@color/app_surface"
+        android:textColor="@color/app_on_surface"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="@id/historyChart"
+        app:layout_constraintTop_toBottomOf="@id/historyChart" />
+
+    <TextView
         android:id="@+id/soundText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -95,6 +109,52 @@
         app:layout_constraintStart_toStartOf="@id/historyChart"
         app:layout_constraintTop_toBottomOf="@id/statusText" />
 
+    <!-- Sort Buttons - Above Table -->
+    <LinearLayout
+        android:id="@+id/sortButtonsContainer"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:orientation="horizontal"
+        android:gravity="center"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/readingsTitle">
+
+        <Button
+            android:id="@+id/btn_sort_recent"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_margin="4dp"
+            android:text="Recent"
+            android:textSize="12sp"
+            android:padding="8dp" />
+
+        <Button
+            android:id="@+id/btn_sort_loudest"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_margin="4dp"
+            android:text="Loudest"
+            android:textSize="12sp"
+            android:padding="8dp" />
+
+        <Button
+            android:id="@+id/btn_sort_status"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_margin="4dp"
+            android:text="Status"
+            android:textSize="12sp"
+            android:padding="8dp" />
+
+    </LinearLayout>
+
     <LinearLayout
         android:id="@+id/readingsHeader"
         android:layout_width="0dp"
@@ -107,7 +167,7 @@
         android:padding="8dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/readingsTitle">
+        app:layout_constraintTop_toBottomOf="@id/sortButtonsContainer">
 
         <TextView
             android:layout_width="0dp"
