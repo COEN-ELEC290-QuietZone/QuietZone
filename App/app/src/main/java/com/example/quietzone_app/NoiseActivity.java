@@ -93,7 +93,8 @@ public class NoiseActivity extends AppCompatActivity {
                 }
 
                 @Override
-                public void onCancelled(@NonNull DatabaseError error) {}
+                public void onCancelled(@NonNull DatabaseError error) {
+                }
             };
             userFavoritesRef.addValueEventListener(favoritesListener);
         }
@@ -206,8 +207,10 @@ public class NoiseActivity extends AppCompatActivity {
             boolean isFav1 = favoriteRooms.containsKey(r1.sensorKey);
             boolean isFav2 = favoriteRooms.containsKey(r2.sensorKey);
 
-            if (isFav1 && !isFav2) return -1;
-            if (!isFav1 && isFav2) return 1;
+            if (isFav1 && !isFav2)
+                return -1;
+            if (!isFav1 && isFav2)
+                return 1;
 
             if (isFav1 && isFav2) {
                 Long t1 = favoriteRooms.get(r1.sensorKey);
@@ -258,15 +261,19 @@ public class NoiseActivity extends AppCompatActivity {
 
     private void updateRoomUi(RoomItem room) {
         float soundLevel = room.latestSoundLevel;
+
         if (room.soundText != null) {
-            room.soundText.setText(Float.isNaN(soundLevel) ? getString(R.string.room_sound_placeholder) : getString(R.string.room_sound_format, soundLevel));
+            room.soundText.setText(Float.isNaN(soundLevel)
+                    ? getString(R.string.room_sound_placeholder)
+                    : getString(R.string.room_sound_format, soundLevel));
         }
+
+        // ✅ ALWAYS update (removed threshold)
         if (room.speedView != null && !Float.isNaN(soundLevel)) {
-            if (Float.isNaN(room.lastDisplayedSpeed) || Math.abs(soundLevel - room.lastDisplayedSpeed) > 1.0f) {
-                updateSpeedometerInstant(room.speedView, soundLevel);
-                room.lastDisplayedSpeed = soundLevel;
-            }
+            updateSpeedometerInstant(room.speedView, soundLevel);
+            room.lastDisplayedSpeed = soundLevel;
         }
+
         if (room.statusText != null) {
             if (Float.isNaN(soundLevel)) {
                 room.statusText.setText(getString(R.string.room_status_waiting));
@@ -275,6 +282,7 @@ public class NoiseActivity extends AppCompatActivity {
                 applyStatusText(room.statusText, soundLevel);
             }
         }
+
         if (room.groupStatusText != null) {
             if (Float.isNaN(soundLevel)) {
                 room.groupStatusText.setText(getString(R.string.room_group_status_waiting));
@@ -293,9 +301,11 @@ public class NoiseActivity extends AppCompatActivity {
     }
 
     private int extractSensorIndex(String sensorKey) {
-        if (sensorKey == null) return Integer.MAX_VALUE;
+        if (sensorKey == null)
+            return Integer.MAX_VALUE;
         int underscore = sensorKey.lastIndexOf('_');
-        if (underscore < 0 || underscore + 1 >= sensorKey.length()) return Integer.MAX_VALUE;
+        if (underscore < 0 || underscore + 1 >= sensorKey.length())
+            return Integer.MAX_VALUE;
         try {
             return Integer.parseInt(sensorKey.substring(underscore + 1));
         } catch (NumberFormatException ignored) {
@@ -305,18 +315,47 @@ public class NoiseActivity extends AppCompatActivity {
 
     private class RoomExpandableAdapter extends BaseExpandableListAdapter {
 
-        @Override public int getGroupCount() { return rooms.size(); }
-        @Override public int getChildrenCount(int groupPosition) { return 1; }
-        @Override public Object getGroup(int groupPosition) { return rooms.get(groupPosition); }
-        @Override public Object getChild(int groupPosition, int childPosition) { return "details"; }
-        @Override public long getGroupId(int groupPosition) { return groupPosition; }
-        @Override public long getChildId(int groupPosition, int childPosition) { return groupPosition; }
-        @Override public boolean hasStableIds() { return true; }
+        @Override
+        public int getGroupCount() {
+            return rooms.size();
+        }
+
+        @Override
+        public int getChildrenCount(int groupPosition) {
+            return 1;
+        }
+
+        @Override
+        public Object getGroup(int groupPosition) {
+            return rooms.get(groupPosition);
+        }
+
+        @Override
+        public Object getChild(int groupPosition, int childPosition) {
+            return "details";
+        }
+
+        @Override
+        public long getGroupId(int groupPosition) {
+            return groupPosition;
+        }
+
+        @Override
+        public long getChildId(int groupPosition, int childPosition) {
+            return groupPosition;
+        }
+
+        @Override
+        public boolean hasStableIds() {
+            return true;
+        }
 
         @Override
         public View getGroupView(int groupPosition, boolean isExpanded, View convertView, ViewGroup parent) {
             RoomItem room = rooms.get(groupPosition);
-            View view = convertView == null ? LayoutInflater.from(NoiseActivity.this).inflate(R.layout.list_item_room_group, parent, false) : convertView;
+            View view = convertView == null
+                    ? LayoutInflater.from(NoiseActivity.this).inflate(R.layout.list_item_room_group, parent, false)
+                    : convertView;
 
             ImageView heartIcon = view.findViewById(R.id.heartIcon);
             TextView roomNameTv = view.findViewById(R.id.groupRoomName);
@@ -334,7 +373,8 @@ public class NoiseActivity extends AppCompatActivity {
         }
 
         private void toggleFavorite(String sensorKey, boolean currentlyFavorite) {
-            if (userFavoritesRef == null) return;
+            if (userFavoritesRef == null)
+                return;
             if (currentlyFavorite) {
                 userFavoritesRef.child(sensorKey).removeValue();
             } else {
@@ -343,9 +383,16 @@ public class NoiseActivity extends AppCompatActivity {
         }
 
         @Override
-        public View getChildView(int groupPosition, int childPosition, boolean isLastChild, View convertView, ViewGroup parent) {
+        public View getChildView(int groupPosition, int childPosition, boolean isLastChild,
+                View convertView, ViewGroup parent) {
+
             RoomItem room = rooms.get(groupPosition);
-            View view = LayoutInflater.from(NoiseActivity.this).inflate(R.layout.list_item_room_child, parent, false);
+
+            View view = convertView;
+            if (view == null) {
+                view = LayoutInflater.from(NoiseActivity.this)
+                        .inflate(R.layout.list_item_room_child, parent, false);
+            }
 
             room.speedView = view.findViewById(R.id.childSpeedView);
             room.soundText = view.findViewById(R.id.childSoundText);
@@ -357,6 +404,12 @@ public class NoiseActivity extends AppCompatActivity {
             room.speedView.setSpeedTextSize(0);
             room.speedView.setWithTremble(false);
 
+            // ✅ FORCE update when view is created
+            if (!Float.isNaN(room.latestSoundLevel)) {
+                updateSpeedometerInstant(room.speedView, room.latestSoundLevel);
+                room.lastDisplayedSpeed = room.latestSoundLevel;
+            }
+
             openRoomButton.setOnClickListener(v -> {
                 Intent roomIntent = new Intent(NoiseActivity.this, RoomActivity.class);
                 roomIntent.putExtra(RoomActivity.EXTRA_SENSOR_KEY, room.sensorKey);
@@ -365,10 +418,14 @@ public class NoiseActivity extends AppCompatActivity {
             });
 
             updateRoomUi(room);
+
             return view;
         }
 
-        @Override public boolean isChildSelectable(int groupPosition, int childPosition) { return false; }
+        @Override
+        public boolean isChildSelectable(int groupPosition, int childPosition) {
+            return false;
+        }
     }
 
     private static class RoomItem {
@@ -418,15 +475,29 @@ public class NoiseActivity extends AppCompatActivity {
     private void updateSpeedometerInstant(SpeedView speedView, float level) {
         float clampedLevel = Math.max(0f, Math.min(level, speedView.getMaxSpeed()));
         speedView.speedTo(clampedLevel, 0);
+
+        // ✅ FORCE redraw (important)
+        speedView.invalidate();
     }
 
-    @Override public boolean onCreateOptionsMenu(android.view.Menu menu) { getMenuInflater().inflate(R.menu.menu_noiseactivity, menu); return true; }
+    @Override
+    public boolean onCreateOptionsMenu(android.view.Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_noiseactivity, menu);
+        return true;
+    }
 
     @Override
     public boolean onOptionsItemSelected(android.view.MenuItem item) {
-        if (item.getItemId() == R.id.action_add) { Toast.makeText(this, "Add device", Toast.LENGTH_SHORT).show(); return true; }
+        if (item.getItemId() == R.id.action_add) {
+            Toast.makeText(this, "Add device", Toast.LENGTH_SHORT).show();
+            return true;
+        }
         return super.onOptionsItemSelected(item);
     }
 
-    @Override public boolean onSupportNavigateUp() { finish(); return true; }
+    @Override
+    public boolean onSupportNavigateUp() {
+        finish();
+        return true;
+    }
 }

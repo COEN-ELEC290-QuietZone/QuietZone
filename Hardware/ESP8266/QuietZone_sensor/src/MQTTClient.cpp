@@ -41,12 +41,12 @@ void MQTTClientManager::connectWiFi()
 
 void MQTTClientManager::connectMQTT()
 {
-    mqttClient.setServer(mqttServer, 1883);
+    mqttClient.setServer(mqtt_server, 1883);
 
     int attempts = 0;
     while (!mqttClient.connected() && attempts < 5)
     {
-        Serial.println("[INFO] Connecting to MQTT broker at " + String(mqttServer) + ":1883");
+        Serial.println("[INFO] Connecting to MQTT broker at " + String(mqtt_server) + ":1883");
         if (mqttClient.connect("ESP8266_SoundSensor"))
         {
             Serial.println("[INFO] MQTT connected.");

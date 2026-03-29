@@ -14,7 +14,7 @@ private:
 
     static const char *ssid;
     static const char *password;
-    static const char *mqttServer;
+    static const char *mqtt_server;
     static const char *sensorId;
     static const char *sensorName;
     static const unsigned long publishInterval = 500;
