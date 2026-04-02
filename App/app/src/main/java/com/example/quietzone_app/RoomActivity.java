@@ -29,10 +29,16 @@ import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.formatter.ValueFormatter;
 import com.github.mikephil.charting.listener.OnChartValueSelectedListener;
 import com.github.mikephil.charting.highlight.Highlight;
+
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
+
+// Removed invalid lifecycleScope and coroutine imports
+import com.example.quietzone_app.AppDatabase;
+import com.example.quietzone_app.SoundReadingDao;
+import com.example.quietzone_app.SoundReadingEntity;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -53,6 +59,8 @@ public class RoomActivity extends AppCompatActivity {
 
     private static final float CHART_MIN_VISIBLE_WINDOW_SECONDS = 10f * 60f;
     private static final float CHART_MAX_VISIBLE_WINDOW_SECONDS = 60f * 60f;
+    private static final float CHART_X_AXIS_MARGIN_RATIO = 0.05f;
+    private static final float CHART_X_AXIS_MIN_MARGIN_SECONDS = 15f;
     private static final float TARGET_BAR_WIDTH_PX = 5f;
     private static final int PAGE_SIZE = 50;
     private static final int MAX_CHART_READINGS = 300;
@@ -74,17 +82,15 @@ public class RoomActivity extends AppCompatActivity {
 
     // Sorting options
     enum SortMode {
-        TIMESTAMP_DESC,  // newest first
-        TIMESTAMP_ASC,   // oldest first
-        VALUE_DESC,      // highest dB first
-        VALUE_ASC,       // lowest dB first
-        STATUS_GROUP     // group by Quiet/Moderate/Loud
+        TIMESTAMP_DESC, // newest first
+        TIMESTAMP_ASC, // oldest first
+        VALUE_DESC, // highest dB first
+        VALUE_ASC, // lowest dB first
+        STATUS_GROUP // group by Quiet/Moderate/Loud
     }
 
     private LineChart historyChart;
     private TextView chartDateLabel;
-    private TextView chartPointInfo;
-    private TextView soundText;
     private TextView statusText;
     private ListView readingsList;
     private ReadingsTableAdapter listAdapter;
@@ -104,6 +110,10 @@ public class RoomActivity extends AppCompatActivity {
     private boolean hasMoreData = true;
     private SortMode currentSortMode = SortMode.TIMESTAMP_DESC;
     private boolean isScrolling = false;
+
+    // Room database
+    private AppDatabase db;
+    private SoundReadingDao soundReadingDao;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -128,10 +138,61 @@ public class RoomActivity extends AppCompatActivity {
         }
         roomDisplayName = roomName;
 
+        db = AppDatabase.getInstance(this);
+        soundReadingDao = db.soundReadingDao();
+
         setupToolbar();
         setupViews();
         setupListPagination();
-        loadMoreReadings();
+
+        // Load from local DB first, then update from Firestore
+        loadFromLocalDbAndUpdate();
+    }
+
+    private void loadFromLocalDbAndUpdate() {
+        // 1. Load from local DB in background
+        new Thread(() -> {
+            List<SoundReadingEntity> cached = soundReadingDao.getReadingsForSensor(sensorKey);
+            runOnUiThread(() -> {
+                allReadings.clear();
+                for (SoundReadingEntity entity : cached) {
+                    allReadings.add(new SoundReading(entity.timestampMs, entity.value));
+                }
+                applyCurrentSorting();
+                updateUI();
+
+                // 2. Fetch from Firestore in background
+                fetchAndCacheFromFirestore();
+            });
+        }).start();
+    }
+
+    private void fetchAndCacheFromFirestore() {
+        Query query = buildQuery();
+        query.get().addOnSuccessListener(snapshot -> {
+            List<SoundReading> newReadings = new ArrayList<>();
+            List<SoundReadingEntity> entities = new ArrayList<>();
+            QueryDocumentSnapshot lastDoc = null;
+            for (QueryDocumentSnapshot doc : snapshot) {
+                SoundReading reading = parseFirestoreReading(doc);
+                if (reading != null) {
+                    newReadings.add(reading);
+                    entities.add(new SoundReadingEntity(reading.timestampMs, reading.value, sensorKey));
+                }
+                lastDoc = doc;
+            }
+            if (!newReadings.isEmpty()) {
+                allReadings.clear();
+                allReadings.addAll(newReadings);
+                applyCurrentSorting();
+                updateUI();
+                // Save to local DB in background
+                new Thread(() -> {
+                    soundReadingDao.deleteReadingsForSensor(sensorKey);
+                    soundReadingDao.insertAll(entities);
+                }).start();
+            }
+        });
     }
 
     private void setupToolbar() {
@@ -157,17 +218,15 @@ public class RoomActivity extends AppCompatActivity {
     private void setupViews() {
         historyChart = findViewById(R.id.historyChart);
         chartDateLabel = findViewById(R.id.chartDateLabel);
-        chartPointInfo = findViewById(R.id.chartPointInfo);
-        soundText = findViewById(R.id.soundText);
         statusText = findViewById(R.id.statusText);
         readingsList = findViewById(R.id.readingsList);
 
         chartDateLabel.setText(R.string.room_chart_loading);
-        chartPointInfo.setVisibility(View.GONE); // Hidden until user taps a point
+        // Removed chartPointInfo, now using MarkerView for tooltip
 
         int onSurface = getResources().getColor(R.color.app_on_surface, getTheme());
         configureChart(onSurface);
-        setupChartListener();
+        setupChartMarker();
 
         // Setup sort buttons
         btnSortTimestampDesc = findViewById(R.id.btn_sort_recent);
@@ -182,25 +241,10 @@ public class RoomActivity extends AppCompatActivity {
         readingsList.setAdapter(listAdapter);
     }
 
-    private void setupChartListener() {
-        historyChart.setOnChartValueSelectedListener(new OnChartValueSelectedListener() {
-            @Override
-            public void onValueSelected(Entry e, Highlight h) {
-                long timestampMs = chartMinTimestampMs + (long)(e.getX() * 1000f);
-                Date date = new Date(timestampMs);
-                String timeStr = formatTimeText(date);
-                String dbStr = String.format(Locale.getDefault(), "%.1f dB", e.getY());
-                
-                // Display in TextView on chart
-                chartPointInfo.setText(timeStr + "\n" + dbStr);
-                chartPointInfo.setVisibility(View.VISIBLE);
-            }
-
-            @Override
-            public void onNothingSelected() {
-                chartPointInfo.setVisibility(View.GONE);
-            }
-        });
+    private void setupChartMarker() {
+        // Set up custom MarkerView for tooltip
+        ChartMarkerView marker = new ChartMarkerView(this, R.layout.marker_view);
+        historyChart.setMarker(marker);
     }
 
     private void setupListPagination() {
@@ -213,8 +257,10 @@ public class RoomActivity extends AppCompatActivity {
             @Override
             public void onScroll(AbsListView view, int firstVisibleItem, int visibleItemCount, int totalItemCount) {
                 // Load more when user scrolls near the end
-                if (!isScrolling) return;
-                if (isLoading || !hasMoreData) return;
+                if (!isScrolling)
+                    return;
+                if (isLoading || !hasMoreData)
+                    return;
 
                 int lastVisibleItem = firstVisibleItem + visibleItemCount;
                 if (lastVisibleItem >= totalItemCount - 5) {
@@ -267,12 +313,10 @@ public class RoomActivity extends AppCompatActivity {
 
             } catch (Exception e) {
                 Log.e("RoomActivity", "Error parsing Firestore data", e);
-                soundText.setText(getString(R.string.room_status_error));
                 isLoading = false;
             }
         }).addOnFailureListener(e -> {
             Log.e("RoomActivity", "Failed to fetch data", e);
-            soundText.setText(getString(R.string.room_database_error_format, e.getMessage()));
             isLoading = false;
         });
     }
@@ -348,8 +392,10 @@ public class RoomActivity extends AppCompatActivity {
     }
 
     private int getStatusGroup(float dB) {
-        if (dB < 50) return 0;
-        if (dB < 70) return 1;
+        if (dB < 50)
+            return 0;
+        if (dB < 70)
+            return 1;
         return 2;
     }
 
@@ -365,7 +411,7 @@ public class RoomActivity extends AppCompatActivity {
     private void updateUI() {
         if (allReadings.isEmpty()) {
             chartDateLabel.setText(R.string.room_chart_no_data);
-            soundText.setText(getString(R.string.room_status_waiting));
+            statusText.setText("");
             listAdapter.notifyDataSetChanged();
             renderChart();
             return;
@@ -373,8 +419,9 @@ public class RoomActivity extends AppCompatActivity {
 
         // Display latest reading based on current sort
         SoundReading latest = allReadings.get(0);
-        soundText.setText(getString(R.string.room_sound_level_display_format, latest.value));
-        updateStatus(statusText, latest.value);
+        // Compose status string: "--db NoiseLevel: Quiet"
+        String statusLabel = getStatusLabelWithDb(latest.value);
+        statusText.setText(statusLabel);
         updateChartDateLabel();
         listAdapter.notifyDataSetChanged();
         renderChart();
@@ -390,7 +437,11 @@ public class RoomActivity extends AppCompatActivity {
         }
 
         float axisMaxSeconds = Math.max(1f, chartRangeMs / 1000f);
-        
+        float xAxisMarginSeconds = Math.max(CHART_X_AXIS_MIN_MARGIN_SECONDS,
+                axisMaxSeconds * CHART_X_AXIS_MARGIN_RATIO);
+        float axisMinimum = Math.max(0f, 0f - xAxisMarginSeconds);
+        float axisMaximum = axisMaxSeconds + xAxisMarginSeconds;
+
         LineDataSet dataSet = new LineDataSet(entries, "Noise (dB)");
         int lineColor = getResources().getColor(R.color.status_moderate, getTheme());
         dataSet.setColor(lineColor);
@@ -398,19 +449,19 @@ public class RoomActivity extends AppCompatActivity {
         dataSet.setValueTextColor(lineColor);
         dataSet.setValueTextSize(10f);
         dataSet.setLineWidth(2f);
-        
+
         // Draw circles (dots) for each data point
         dataSet.setDrawCircles(true);
         dataSet.setCircleRadius(4f);
         dataSet.setCircleColor(lineColor);
         dataSet.setCircleHoleRadius(2f);
         dataSet.setCircleHoleColor(android.graphics.Color.WHITE);
-        
+
         // Fill area under the line with transparent orange
         dataSet.setDrawFilled(true);
         dataSet.setFillColor(getResources().getColor(R.color.status_moderate, getTheme()));
         dataSet.setFillAlpha(80);
-        
+
         dataSet.setHighLightColor(lineColor);
 
         LineData lineData = new LineData(dataSet);
@@ -418,9 +469,9 @@ public class RoomActivity extends AppCompatActivity {
 
         // Set X axis limits - full range
         XAxis xAxis = historyChart.getXAxis();
-        xAxis.setAxisMinimum(0f);
-        xAxis.setAxisMaximum(axisMaxSeconds);
-        
+        xAxis.setAxisMinimum(axisMinimum);
+        xAxis.setAxisMaximum(axisMaximum);
+
         // Force MPAndroidChart to show more labels by setting label count
         // Show at most every 3-5 data points to avoid overcrowding
         int labelCount = Math.max(3, Math.min(entries.size() / 3, 15));
@@ -440,8 +491,9 @@ public class RoomActivity extends AppCompatActivity {
 
         // Add 10% padding above and below
         float padding = (maxY - minY) * 0.1f;
-        if (padding == 0) padding = 5f;
-        
+        if (padding == 0)
+            padding = 5f;
+
         historyChart.getAxisLeft().setAxisMinimum(Math.max(0f, minY - padding));
         historyChart.getAxisLeft().setAxisMaximum(maxY + padding);
 
@@ -450,10 +502,10 @@ public class RoomActivity extends AppCompatActivity {
         if (visibleWindowSeconds < 60f) {
             visibleWindowSeconds = Math.min(axisMaxSeconds, 5f * 60f);
         }
-        
+
         historyChart.setVisibleXRangeMaximum(visibleWindowSeconds);
-        historyChart.moveViewToX(Math.max(0f, axisMaxSeconds - visibleWindowSeconds));
-        
+        historyChart.moveViewToX(Math.max(axisMinimum, axisMaximum - visibleWindowSeconds));
+
         historyChart.invalidate();
     }
 
@@ -546,7 +598,7 @@ public class RoomActivity extends AppCompatActivity {
 
                 long timestampMs = chartMinTimestampMs + offsetMs;
                 Date date = new Date(timestampMs);
-                
+
                 // Show HH:MM format for each data point
                 return formatInUserTimeZone(date, "HH:mm");
             }
@@ -560,17 +612,23 @@ public class RoomActivity extends AppCompatActivity {
         historyChart.getAxisLeft().setDrawGridLines(true);
     }
 
-    private void updateStatus(TextView view, float dB) {
+    // Returns a string like "45.2 dB: Quiet"
+    private String getStatusLabelWithDb(float dB) {
+        String level;
+        int color;
         if (dB < 50) {
-            view.setText(R.string.room_group_quiet);
-            view.setTextColor(getResources().getColor(R.color.status_quiet, getTheme()));
+            level = getString(R.string.room_group_quiet);
+            color = getResources().getColor(R.color.status_quiet, getTheme());
         } else if (dB < 70) {
-            view.setText(R.string.room_group_moderate);
-            view.setTextColor(getResources().getColor(R.color.status_moderate, getTheme()));
+            level = getString(R.string.room_group_moderate);
+            color = getResources().getColor(R.color.status_moderate, getTheme());
         } else {
-            view.setText(R.string.room_group_loud);
-            view.setTextColor(getResources().getColor(R.color.status_loud, getTheme()));
+            level = getString(R.string.room_group_loud);
+            color = getResources().getColor(R.color.status_loud, getTheme());
         }
+        // Set color for statusText
+        statusText.setTextColor(color);
+        return String.format("%.1f dB: %s", dB, level);
     }
 
     private void updateChartDateLabel() {
