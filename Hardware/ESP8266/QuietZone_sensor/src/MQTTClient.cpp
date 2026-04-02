@@ -1,7 +1,7 @@
 #include "MQTTClient.h"
-const char *MQTTClientManager::ssid = "YOUR_SSID";
-const char *MQTTClientManager::password = "YOUR_PASSWORD";
-const char *MQTTClientManager::mqttServer = "YOUR_MQTT_SERVER";
+const char *MQTTClientManager::ssid = "Your_SSID";
+const char *MQTTClientManager::password = "Your_PASSWORD";
+const char *MQTTClientManager::mqtt_server = "IP_ADDRESS";
 const char *MQTTClientManager::sensorId = "esp8266_sensor_01";
 const char *MQTTClientManager::sensorName = "Sensor 1 ESP8266";
 
@@ -41,12 +41,12 @@ void MQTTClientManager::connectWiFi()
 
 void MQTTClientManager::connectMQTT()
 {
-    mqttClient.setServer(mqttServer, 1883);
+    mqttClient.setServer(mqtt_server, 1883);
 
     int attempts = 0;
     while (!mqttClient.connected() && attempts < 5)
     {
-        Serial.println("[INFO] Connecting to MQTT broker at " + String(mqttServer) + ":1883");
+        Serial.println("[INFO] Connecting to MQTT broker at " + String(mqtt_server) + ":1883");
         if (mqttClient.connect("ESP8266_SoundSensor"))
         {
             Serial.println("[INFO] MQTT connected.");

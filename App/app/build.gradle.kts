@@ -37,6 +37,11 @@ dependencies {
     implementation(libs.material)
     implementation(libs.activity)
     implementation(libs.constraintlayout)
+    // Room (SQLite) dependencies
+    implementation("androidx.room:room-runtime:2.6.1")
+    annotationProcessor("androidx.room:room-compiler:2.6.1")
+    // For Kotlin use kapt instead of annotationProcessor
+    testImplementation("androidx.room:room-testing:2.6.1")
 
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.database)
