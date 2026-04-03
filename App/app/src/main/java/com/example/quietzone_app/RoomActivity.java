@@ -59,8 +59,7 @@ public class RoomActivity extends AppCompatActivity {
 
     private static final float CHART_MIN_VISIBLE_WINDOW_SECONDS = 10f * 60f;
     private static final float CHART_MAX_VISIBLE_WINDOW_SECONDS = 60f * 60f;
-    private static final float CHART_X_AXIS_MARGIN_RATIO = 0.05f;
-    private static final float CHART_X_AXIS_MIN_MARGIN_SECONDS = 15f;
+    private static final float CHART_X_AXIS_MARGIN_SECONDS = 175f;
     private static final float TARGET_BAR_WIDTH_PX = 5f;
     private static final int PAGE_SIZE = 50;
     private static final int MAX_CHART_READINGS = 300;
@@ -93,6 +92,7 @@ public class RoomActivity extends AppCompatActivity {
     private TextView chartDateLabel;
     private TextView statusText;
     private ListView readingsList;
+    private ChartMarkerView chartMarker;
     private ReadingsTableAdapter listAdapter;
     private android.widget.Button btnSortTimestampDesc;
     private android.widget.Button btnSortValue;
@@ -243,8 +243,8 @@ public class RoomActivity extends AppCompatActivity {
 
     private void setupChartMarker() {
         // Set up custom MarkerView for tooltip
-        ChartMarkerView marker = new ChartMarkerView(this, R.layout.marker_view);
-        historyChart.setMarker(marker);
+        chartMarker = new ChartMarkerView(this, R.layout.marker_view);
+        historyChart.setMarker(chartMarker);
     }
 
     private void setupListPagination() {
@@ -430,6 +430,10 @@ public class RoomActivity extends AppCompatActivity {
     private void renderChart() {
         List<Entry> entries = buildEntriesFromReadings();
 
+        if (chartMarker != null) {
+            chartMarker.setMinTimestampMs(chartMinTimestampMs);
+        }
+
         if (entries.isEmpty()) {
             historyChart.clear();
             historyChart.invalidate();
@@ -437,9 +441,8 @@ public class RoomActivity extends AppCompatActivity {
         }
 
         float axisMaxSeconds = Math.max(1f, chartRangeMs / 1000f);
-        float xAxisMarginSeconds = Math.max(CHART_X_AXIS_MIN_MARGIN_SECONDS,
-                axisMaxSeconds * CHART_X_AXIS_MARGIN_RATIO);
-        float axisMinimum = Math.max(0f, 0f - xAxisMarginSeconds);
+        float xAxisMarginSeconds = CHART_X_AXIS_MARGIN_SECONDS;
+        float axisMinimum = -xAxisMarginSeconds;
         float axisMaximum = axisMaxSeconds + xAxisMarginSeconds;
 
         LineDataSet dataSet = new LineDataSet(entries, "Noise (dB)");

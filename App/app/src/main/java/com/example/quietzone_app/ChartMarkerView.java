@@ -30,7 +30,7 @@ public class ChartMarkerView extends MarkerView {
     @Override
     public void refreshContent(Entry e, Highlight highlight) {
         long realMs = minTimestampMs + (long) (e.getX() * 1000f);
-        String timeStr = new SimpleDateFormat("MMM dd, HH:mm:ss", Locale.getDefault())
+        String timeStr = new SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault())
                 .format(new Date(realMs));
         tvContent.setText(String.format(Locale.getDefault(), "%.1f dB\n%s", e.getY(), timeStr));
         super.refreshContent(e, highlight);
