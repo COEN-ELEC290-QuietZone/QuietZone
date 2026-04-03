@@ -19,6 +19,7 @@ public class SettingsActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        ThemeHelper.applyTheme(this);
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_settings);
@@ -65,6 +66,7 @@ public class SettingsActivity extends AppCompatActivity {
 
         View deviceSetupButton = findViewById(R.id.buttonDeviceSetup);
         View logoutButton = findViewById(R.id.button10);
+        View themeButton = findViewById(R.id.button2);
 
         if (deviceSetupButton != null && !SessionState.isAdmin(this)) {
             deviceSetupButton.setVisibility(View.GONE);
@@ -79,6 +81,12 @@ public class SettingsActivity extends AppCompatActivity {
 
         if (logoutButton != null) {
             logoutButton.setOnClickListener(v -> LogoutManager.performLogout(SettingsActivity.this));
+        }
+
+        if (themeButton != null) {
+            themeButton.setOnClickListener(v -> {
+                ThemeHelper.toggleTheme(this);
+            });
         }
     }
 
