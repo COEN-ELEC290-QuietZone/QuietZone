@@ -3,6 +3,7 @@ package com.example.quietzone_app;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AbsListView;
@@ -15,6 +16,7 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.appcompat.widget.PopupMenu;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -28,7 +30,9 @@ import com.github.mikephil.charting.data.LineDataSet;
 import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.formatter.ValueFormatter;
 import com.github.mikephil.charting.listener.OnChartValueSelectedListener;
+import com.github.mikephil.charting.listener.OnChartGestureListener;
 import com.github.mikephil.charting.highlight.Highlight;
+import com.github.mikephil.charting.utils.ViewPortHandler;
 
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
@@ -46,13 +50,15 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.TimeZone;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class RoomActivity extends AppCompatActivity {
+public class RoomActivity extends AppCompatActivity implements OnChartGestureListener {
 
     public static final String EXTRA_SENSOR_KEY = "extra_sensor_key";
     public static final String EXTRA_ROOM_NAME = "extra_room_name";
@@ -94,14 +100,27 @@ public class RoomActivity extends AppCompatActivity {
     private ListView readingsList;
     private ChartMarkerView chartMarker;
     private ReadingsTableAdapter listAdapter;
-    private android.widget.Button btnSortTimestampDesc;
-    private android.widget.Button btnSortValue;
-    private android.widget.Button btnSortStatus;
+    private android.widget.Button btnResetSort;
+
+    // Header column clickable fields
+    private TextView headerTime;
+    private TextView headerDb;
+    private TextView headerStatus;
+    private boolean isTimeAscending = false;
+    private boolean isDbAscending = false;
+    private boolean isStatusAscending = false;
+
+    // Status filter (null = no filter, otherwise filter by status like "Quiet",
+    // "Moderate", "Loud")
+    private String statusFilterValue = null;
 
     private long chartMinTimestampMs = 0L;
     private long chartRangeMs = 0L;
     private String roomDisplayName;
     private String sensorKey;
+
+    // Set to track hidden gap-filler entry indices
+    private Set<Integer> hiddenEntryIndices = new HashSet<>();
 
     // Pagination state
     private final List<SoundReading> allReadings = new ArrayList<>();
@@ -228,14 +247,25 @@ public class RoomActivity extends AppCompatActivity {
         configureChart(onSurface);
         setupChartMarker();
 
-        // Setup sort buttons
-        btnSortTimestampDesc = findViewById(R.id.btn_sort_recent);
-        btnSortValue = findViewById(R.id.btn_sort_loudest);
-        btnSortStatus = findViewById(R.id.btn_sort_status);
+        // Setup reset sort button
+        btnResetSort = findViewById(R.id.btn_reset_sort);
+        btnResetSort.setOnClickListener(v -> onResetSortClicked());
 
-        btnSortTimestampDesc.setOnClickListener(v -> setSortMode(SortMode.TIMESTAMP_DESC));
-        btnSortValue.setOnClickListener(v -> setSortMode(SortMode.VALUE_DESC));
-        btnSortStatus.setOnClickListener(v -> setSortMode(SortMode.STATUS_GROUP));
+        // Setup header column click listeners
+        headerTime = findViewById(R.id.headerTime);
+        headerDb = findViewById(R.id.headerDb);
+        headerStatus = findViewById(R.id.headerStatus);
+
+        if (headerTime != null) {
+            headerTime.setOnClickListener(v -> onHeaderTimeClicked());
+        }
+        if (headerDb != null) {
+            headerDb.setOnClickListener(v -> onHeaderDbClicked());
+        }
+        // Status column shows filter popup menu
+        if (headerStatus != null) {
+            headerStatus.setOnClickListener(v -> showStatusFilterPopup(v));
+        }
 
         listAdapter = new ReadingsTableAdapter();
         readingsList.setAdapter(listAdapter);
@@ -244,6 +274,7 @@ public class RoomActivity extends AppCompatActivity {
     private void setupChartMarker() {
         // Set up custom MarkerView for tooltip
         chartMarker = new ChartMarkerView(this, R.layout.marker_view);
+        chartMarker.setHiddenEntryIndices(hiddenEntryIndices);
         historyChart.setMarker(chartMarker);
     }
 
@@ -408,6 +439,122 @@ public class RoomActivity extends AppCompatActivity {
         }
     }
 
+    private void onHeaderTimeClicked() {
+        // Toggle between DESC (newest first) and ASC (oldest first)
+        if (currentSortMode == SortMode.TIMESTAMP_DESC) {
+            currentSortMode = SortMode.TIMESTAMP_ASC;
+            isTimeAscending = true;
+        } else {
+            currentSortMode = SortMode.TIMESTAMP_DESC;
+            isTimeAscending = false;
+        }
+        applyCurrentSorting();
+        updateHeaderIndicators();
+        listAdapter.notifyDataSetChanged();
+        renderChart();
+    }
+
+    private void onHeaderDbClicked() {
+        // Toggle between DESC (loudest first) and ASC (quietest first)
+        if (currentSortMode == SortMode.VALUE_DESC) {
+            currentSortMode = SortMode.VALUE_ASC;
+            isDbAscending = true;
+        } else {
+            currentSortMode = SortMode.VALUE_DESC;
+            isDbAscending = false;
+        }
+        applyCurrentSorting();
+        updateHeaderIndicators();
+        listAdapter.notifyDataSetChanged();
+        renderChart();
+    }
+
+    private void onHeaderStatusClicked() {
+        currentSortMode = SortMode.STATUS_GROUP;
+        isStatusAscending = !isStatusAscending;
+        applyCurrentSorting();
+        updateHeaderIndicators();
+        listAdapter.notifyDataSetChanged();
+        renderChart();
+    }
+
+    private void showStatusFilterPopup(View anchor) {
+        PopupMenu popup = new PopupMenu(this, anchor);
+        popup.getMenu().add("All (No Filter)");
+        popup.getMenu().add(getString(R.string.room_group_quiet));
+        popup.getMenu().add(getString(R.string.room_group_moderate));
+        popup.getMenu().add(getString(R.string.room_group_loud));
+
+        popup.setOnMenuItemClickListener(item -> {
+            String selectedFilter = item.getTitle().toString();
+            if (selectedFilter.equals("All (No Filter)")) {
+                statusFilterValue = null;
+            } else {
+                statusFilterValue = selectedFilter;
+            }
+            applyStatusFilter();
+            return true;
+        });
+        popup.show();
+    }
+
+    private void applyStatusFilter() {
+        // Filter the list based on statusFilterValue
+        if (statusFilterValue == null) {
+            // No filter - show all readings
+            listAdapter.notifyDataSetChanged();
+        } else {
+            // Show only readings with matching status
+            listAdapter.notifyDataSetChanged();
+        }
+        renderChart();
+    }
+
+    private void onResetSortClicked() {
+        // Reset to default sort mode (newest first by timestamp) and clear filters
+        currentSortMode = SortMode.TIMESTAMP_DESC;
+        isTimeAscending = false;
+        isDbAscending = false;
+        isStatusAscending = false;
+        statusFilterValue = null;
+        applyCurrentSorting();
+        updateHeaderIndicators();
+        listAdapter.notifyDataSetChanged();
+        renderChart();
+    }
+
+    private void updateHeaderIndicators() {
+        if (headerTime == null || headerDb == null || headerStatus == null) {
+            return;
+        }
+
+        // Reset all headers to default text (without arrows)
+        headerTime.setText(getString(R.string.room_table_time));
+        headerDb.setText(getString(R.string.room_table_db));
+
+        // Update Status header with filter indicator if active
+        if (statusFilterValue != null) {
+            headerStatus.setText(getString(R.string.room_table_status) + " ⊙");
+        } else {
+            headerStatus.setText(getString(R.string.room_table_status));
+        }
+
+        // Update the active header with arrow indicator only
+        switch (currentSortMode) {
+            case TIMESTAMP_DESC:
+            case TIMESTAMP_ASC:
+                headerTime.setText(getString(R.string.room_table_time) + (isTimeAscending ? " ↑" : " ↓"));
+                break;
+            case VALUE_DESC:
+            case VALUE_ASC:
+                headerDb.setText(getString(R.string.room_table_db) + (isDbAscending ? " ↑" : " ↓"));
+                break;
+            case STATUS_GROUP:
+                // Status column does not show sort indicators
+                break;
+        }
+    }
+
     private void updateUI() {
         if (allReadings.isEmpty()) {
             chartDateLabel.setText(R.string.room_chart_no_data);
@@ -423,6 +570,7 @@ public class RoomActivity extends AppCompatActivity {
         String statusLabel = getStatusLabelWithDb(latest.value);
         statusText.setText(statusLabel);
         updateChartDateLabel();
+        updateHeaderIndicators();
         listAdapter.notifyDataSetChanged();
         renderChart();
     }
@@ -432,6 +580,7 @@ public class RoomActivity extends AppCompatActivity {
 
         if (chartMarker != null) {
             chartMarker.setMinTimestampMs(chartMinTimestampMs);
+            chartMarker.setHiddenEntryIndices(hiddenEntryIndices);
         }
 
         if (entries.isEmpty()) {
@@ -452,11 +601,25 @@ public class RoomActivity extends AppCompatActivity {
         dataSet.setValueTextColor(lineColor);
         dataSet.setValueTextSize(10f);
         dataSet.setLineWidth(2f);
-
-        // Draw circles (dots) for each data point
+        dataSet.setDrawValues(false);
         dataSet.setDrawCircles(true);
+        dataSet.setDrawFilled(true);
+        dataSet.setMode(LineDataSet.Mode.LINEAR);
+
+        // Draw circles (dots) for each data point, except for hidden gap-filler entries
+        dataSet.setDrawCircles(true);
+
+        List<Integer> circleColors = new ArrayList<>();
+        for (int i = 0; i < entries.size(); i++) {
+            if (hiddenEntryIndices.contains(i)) {
+                // Transparent color for hidden entries (no dot visible)
+                circleColors.add(android.graphics.Color.TRANSPARENT);
+            } else {
+                circleColors.add(lineColor);
+            }
+        }
+        dataSet.setCircleColors(circleColors);
         dataSet.setCircleRadius(4f);
-        dataSet.setCircleColor(lineColor);
         dataSet.setCircleHoleRadius(2f);
         dataSet.setCircleHoleColor(android.graphics.Color.WHITE);
 
@@ -480,10 +643,15 @@ public class RoomActivity extends AppCompatActivity {
         int labelCount = Math.max(3, Math.min(entries.size() / 3, 15));
         xAxis.setLabelCount(labelCount, false);
 
-        // Auto-scale Y axis based on data
+        // Auto-scale Y axis based on data (ignore hidden gap-filler entries)
         float minY = Float.MAX_VALUE;
         float maxY = Float.MIN_VALUE;
-        for (Entry entry : entries) {
+        for (int i = 0; i < entries.size(); i++) {
+            // Skip hidden entries in Y-axis calculation
+            if (hiddenEntryIndices.contains(i)) {
+                continue;
+            }
+            Entry entry = entries.get(i);
             if (entry.getY() < minY) {
                 minY = entry.getY();
             }
@@ -512,22 +680,34 @@ public class RoomActivity extends AppCompatActivity {
         historyChart.invalidate();
     }
 
+    // private static final long GAP_THRESHOLD_MS = 10*60*1000; // 2 seconds (since
+    // 0.5s interval)
     private List<Entry> buildEntriesFromReadings() {
         if (allReadings.isEmpty()) {
             chartMinTimestampMs = 0L;
             chartRangeMs = 0L;
+            hiddenEntryIndices.clear();
             return new ArrayList<>();
         }
 
-        // Use only recent readings for chart (max 300)
+        // Limit readings (optional, keep your logic)
         List<SoundReading> chartReadings = new ArrayList<>(allReadings);
         if (chartReadings.size() > MAX_CHART_READINGS) {
             chartReadings = new ArrayList<>(chartReadings.subList(0, MAX_CHART_READINGS));
         }
 
-        // Sort by timestamp for chart display
+        // Sort by timestamp ASC (important for gap detection)
         Collections.sort(chartReadings, (a, b) -> Long.compare(a.timestampMs, b.timestampMs));
+        long gapThreshold = 10 * 60 * 1000; // fallback = 10 min
 
+        if (chartReadings.size() >= 2) {
+            long expectedInterval = chartReadings.get(1).timestampMs - chartReadings.get(0).timestampMs;
+
+            // Safety: avoid weird values (like 0 or negative)
+            if (expectedInterval > 0) {
+                gapThreshold = expectedInterval * 2;
+            }
+        }
         long minTs = chartReadings.get(0).timestampMs;
         long maxTs = chartReadings.get(chartReadings.size() - 1).timestampMs;
         if (maxTs <= minTs) {
@@ -537,11 +717,46 @@ public class RoomActivity extends AppCompatActivity {
         chartMinTimestampMs = minTs;
         chartRangeMs = maxTs - minTs;
 
-        List<Entry> entries = new ArrayList<>(chartReadings.size());
+        List<Entry> entries = new ArrayList<>();
+        hiddenEntryIndices.clear();
+
+        long GAP_FILLER_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
+        SoundReading prev = null;
+
         for (SoundReading reading : chartReadings) {
+
+            if (prev != null) {
+                long diff = reading.timestampMs - prev.timestampMs;
+
+                if (diff > gapThreshold) {
+                    // Add hidden gap-filler entries (0dB) at start and end of gap window
+                    // Start of gap (5 min after previous reading)
+                    long gapStartTs = prev.timestampMs + GAP_FILLER_INTERVAL;
+                    float gapStartX = (gapStartTs - minTs) / 1000f;
+
+                    // End of gap (5 min before current reading)
+                    long gapEndTs = reading.timestampMs - GAP_FILLER_INTERVAL;
+                    float gapEndX = (gapEndTs - minTs) / 1000f;
+
+                    // Add gap-start marker (0dB, hidden)
+                    int startIdx = entries.size();
+                    entries.add(new Entry(gapStartX, 0f));
+                    hiddenEntryIndices.add(startIdx);
+
+                    // Add gap-end marker (0dB, hidden)
+                    int endIdx = entries.size();
+                    entries.add(new Entry(gapEndX, 0f));
+                    hiddenEntryIndices.add(endIdx);
+                }
+            }
+
             float xSeconds = (reading.timestampMs - minTs) / 1000f;
             entries.add(new Entry(xSeconds, reading.value));
+
+            prev = reading;
         }
+
         return entries;
     }
 
@@ -570,6 +785,7 @@ public class RoomActivity extends AppCompatActivity {
         historyChart.setDoubleTapToZoomEnabled(true);
         historyChart.setDrawGridBackground(false);
         historyChart.setExtraBottomOffset(20f);
+        historyChart.setOnChartGestureListener(this);
 
         Description description = new Description();
         description.setText("");
@@ -639,7 +855,29 @@ public class RoomActivity extends AppCompatActivity {
             chartDateLabel.setText(R.string.room_chart_no_data);
             return;
         }
+        // Get the visible range from the chart viewport
+        float lowestVisibleX = historyChart.getLowestVisibleX();
+        float highestVisibleX = historyChart.getHighestVisibleX();
 
+        // Convert from chart coordinates (seconds) back to milliseconds
+        long visibleMinTs = chartMinTimestampMs + (long) (Math.max(0f, lowestVisibleX) * 1000f);
+        long visibleMaxTs = chartMinTimestampMs + (long) (Math.max(0f, highestVisibleX) * 1000f);
+
+        // If no valid chart range, fall back to all data range
+        if (chartMinTimestampMs <= 0L || chartRangeMs <= 0L) {
+            visibleMinTs = Long.MAX_VALUE;
+            visibleMaxTs = Long.MIN_VALUE;
+            for (SoundReading reading : allReadings) {
+                if (reading.timestampMs < visibleMinTs) {
+                    visibleMinTs = reading.timestampMs;
+                }
+                if (reading.timestampMs > visibleMaxTs) {
+                    visibleMaxTs = reading.timestampMs;
+                }
+            }
+        }
+
+        // Clamp values to actual data range
         long minTs = Long.MAX_VALUE;
         long maxTs = Long.MIN_VALUE;
         for (SoundReading reading : allReadings) {
@@ -651,22 +889,20 @@ public class RoomActivity extends AppCompatActivity {
             }
         }
 
-        // Check if data spans multiple days
-        Calendar calMin = Calendar.getInstance();
-        calMin.setTimeInMillis(minTs);
-        Calendar calMax = Calendar.getInstance();
-        calMax.setTimeInMillis(maxTs);
+        visibleMinTs = Math.max(visibleMinTs, minTs);
+        visibleMaxTs = Math.min(visibleMaxTs, maxTs);
 
-        SimpleDateFormat dateFormat = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault());
-        String minDate = dateFormat.format(new Date(minTs));
-        String maxDate = dateFormat.format(new Date(maxTs));
+        // Check if visible data spans multiple days
+        SimpleDateFormat dateFormat = new SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault());
+        String minDate = dateFormat.format(new Date(visibleMinTs));
+        String maxDate = dateFormat.format(new Date(visibleMaxTs));
 
         if (minDate.equals(maxDate)) {
             // Same day - show single date
             chartDateLabel.setText(minDate);
         } else {
             // Multiple days - show range
-            chartDateLabel.setText(minDate + " to " + maxDate);
+            chartDateLabel.setText(minDate + " - " + maxDate);
         }
     }
 
@@ -797,14 +1033,29 @@ public class RoomActivity extends AppCompatActivity {
     private final class ReadingsTableAdapter extends BaseAdapter {
         private final LayoutInflater inflater = LayoutInflater.from(RoomActivity.this);
 
+        private List<SoundReading> getFilteredReadings() {
+            if (statusFilterValue == null) {
+                return allReadings;
+            }
+
+            List<SoundReading> filtered = new ArrayList<>();
+            for (SoundReading reading : allReadings) {
+                String readingStatus = getStatusLabel(reading.value);
+                if (readingStatus.equals(statusFilterValue)) {
+                    filtered.add(reading);
+                }
+            }
+            return filtered;
+        }
+
         @Override
         public int getCount() {
-            return allReadings.size();
+            return getFilteredReadings().size();
         }
 
         @Override
         public Object getItem(int position) {
-            return allReadings.get(position);
+            return getFilteredReadings().get(position);
         }
 
         @Override
@@ -819,7 +1070,7 @@ public class RoomActivity extends AppCompatActivity {
                 rowView = inflater.inflate(R.layout.list_item_reading_row, parent, false);
             }
 
-            SoundReading row = allReadings.get(position);
+            SoundReading row = getFilteredReadings().get(position);
             TextView timeCell = rowView.findViewById(R.id.timeCell);
             TextView valueCell = rowView.findViewById(R.id.valueCell);
             TextView statusCell = rowView.findViewById(R.id.statusCell);
@@ -831,6 +1082,54 @@ public class RoomActivity extends AppCompatActivity {
 
             return rowView;
         }
+    }
+
+    // OnChartGestureListener implementations
+    @Override
+    public void onChartGestureStart(MotionEvent me,
+            com.github.mikephil.charting.listener.ChartTouchListener.ChartGesture lastPerformedGesture) {
+        // Update date label when gesture starts (optional)
+    }
+
+    @Override
+    public void onChartGestureEnd(MotionEvent me,
+            com.github.mikephil.charting.listener.ChartTouchListener.ChartGesture lastPerformedGesture) {
+        // Update date label when gesture ends
+        updateChartDateLabel();
+    }
+
+    @Override
+    public void onChartLongPressed(MotionEvent me) {
+        // Handle long press
+    }
+
+    @Override
+    public void onChartDoubleTapped(MotionEvent me) {
+        // Update date label when double tap (zoom) occurs
+        updateChartDateLabel();
+    }
+
+    @Override
+    public void onChartSingleTapped(MotionEvent me) {
+        // Handle single tap
+    }
+
+    @Override
+    public void onChartFling(MotionEvent me1, MotionEvent me2, float velocityX, float velocityY) {
+        // Update date label when user flings/scrolls
+        updateChartDateLabel();
+    }
+
+    @Override
+    public void onChartScale(MotionEvent me, float scaleX, float scaleY) {
+        // Update date label when scaling occurs
+        updateChartDateLabel();
+    }
+
+    @Override
+    public void onChartTranslate(MotionEvent me, float dX, float dY) {
+        // Update date label when chart is translated/panned
+        updateChartDateLabel();
     }
 
     @Override

@@ -27,7 +27,7 @@
     <string name="room_chart_loading">Loading...</string>
     <string name="room_chart_no_data">No readings yet</string>
     <string name="room_chart_range_format">%1$s - %2$s</string>
-    <string name="room_recent_readings">Recent Readings (Newest First)</string>
+    <string name="room_recent_readings">History</string>
     <string name="room_table_time">Time</string>
     <string name="room_table_db">dB</string>
     <string name="room_table_status">Status</string>
