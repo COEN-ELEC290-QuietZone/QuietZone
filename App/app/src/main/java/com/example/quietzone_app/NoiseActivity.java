@@ -33,7 +33,6 @@ import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -113,6 +112,19 @@ public class NoiseActivity extends AppCompatActivity {
         };
         liveSensorsRef.addValueEventListener(liveSensorsListener);
         liveSensorsHandle = FirebaseListenerRegistry.register(liveSensorsRef, liveSensorsListener);
+
+        // Retrieve FCM Token here
+        FirebaseMessaging.getInstance().getToken()
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful()) {
+                        // Get the FCM registration token
+                        String token = task.getResult();
+                        Log.d("FCM Token", "Device token: " + token);  // Log the token
+                        // Optionally, save it to your backend or use it for push notifications
+                    } else {
+                        Log.e("FCM Token", "Fetching token failed", task.getException());
+                    }
+                });
     }
 
     private void setupNavigation() {
@@ -384,7 +396,7 @@ public class NoiseActivity extends AppCompatActivity {
 
         @Override
         public View getChildView(int groupPosition, int childPosition, boolean isLastChild,
-                View convertView, ViewGroup parent) {
+                                 View convertView, ViewGroup parent) {
 
             RoomItem room = rooms.get(groupPosition);
 
