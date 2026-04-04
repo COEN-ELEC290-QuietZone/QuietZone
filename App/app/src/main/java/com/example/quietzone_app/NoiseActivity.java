@@ -229,6 +229,9 @@ public class NoiseActivity extends AppCompatActivity {
         room.sensorListener = new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                // Track sensor in SharedPreferences
+                saveSensorTracking(room.sensorKey, room.roomName);
+
                 if (!dataSnapshot.exists()) {
                     room.latestSoundLevel = Float.NaN;
                     updateRoomUi(room);
@@ -257,6 +260,34 @@ public class NoiseActivity extends AppCompatActivity {
         };
         room.sensorRef.addValueEventListener(room.sensorListener);
         room.sensorHandle = FirebaseListenerRegistry.register(room.sensorRef, room.sensorListener);
+    }
+
+    private void saveSensorTracking(String sensorKey, String roomName) {
+        android.content.SharedPreferences prefs = getSharedPreferences("sensor_data", android.content.Context.MODE_PRIVATE);
+        android.content.SharedPreferences.Editor editor = prefs.edit();
+        
+        // Get existing configured IDs
+        String allConfigured = prefs.getString("all_configured_ids", "");
+        
+        // Add this sensor ID if not already present
+        if (!allConfigured.contains(sensorKey)) {
+            if (allConfigured.isEmpty()) {
+                allConfigured = sensorKey;
+            } else {
+                allConfigured += "," + sensorKey;
+            }
+            editor.putString("all_configured_ids", allConfigured);
+        }
+        
+        // Save sensor metadata
+        editor.putString(sensorKey + "_name", roomName);
+        editor.putString(sensorKey + "_room", roomName);
+        
+        // Update timestamp of when data was actually RECEIVED from Firebase
+        // This is the key difference - we only update this when onDataChange is called
+        editor.putLong(sensorKey + "_lastDataReceivedMs", System.currentTimeMillis());
+        
+        editor.apply();
     }
 
     private void updateRoomUi(RoomItem room) {

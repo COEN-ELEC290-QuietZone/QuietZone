@@ -88,6 +88,15 @@ public class SettingsActivity extends AppCompatActivity {
                 ThemeHelper.toggleTheme(this);
             });
         }
+
+        View adminDashboardButton = findViewById(R.id.buttonAdminDashboard);
+
+        if (adminDashboardButton != null) {
+            adminDashboardButton.setOnClickListener(v -> {
+                Intent intent = new Intent(SettingsActivity.this, AdminDashboardActivity.class);
+                startActivity(intent);
+            });
+        }
     }
 
     private void applyCalculatedGridTileSize() {
