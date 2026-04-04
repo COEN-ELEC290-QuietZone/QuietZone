@@ -272,6 +272,25 @@
                     app:cornerRadius="16dp" />
 
                 <com.google.android.material.button.MaterialButton
+                    android:id="@+id/buttonAdminDashboard"
+                    android:layout_width="112dp"
+                    android:layout_height="112dp"
+                    android:layout_margin="8dp"
+                    android:text="Admin Dashboard"
+                    android:textColor="@color/app_on_background"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:fontFamily="@font/jost"
+                    app:icon="@drawable/ic_person"
+                    app:iconGravity="top"
+                    app:iconTint="@color/app_on_background"
+                    app:iconSize="64dp"
+                    app:iconPadding="2dp"
+                    app:cornerRadius="16dp" />
+
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/button10"
                     android:layout_width="112dp"
                     android:layout_height="112dp"
