@@ -92,10 +92,15 @@ public class SettingsActivity extends AppCompatActivity {
         View adminDashboardButton = findViewById(R.id.buttonAdminDashboard);
 
         if (adminDashboardButton != null) {
-            adminDashboardButton.setOnClickListener(v -> {
-                Intent intent = new Intent(SettingsActivity.this, AdminDashboardActivity.class);
-                startActivity(intent);
-            });
+            // Only show admin dashboard button to admin users
+            if (!SessionState.isAdmin(this)) {
+                adminDashboardButton.setVisibility(View.GONE);
+            } else {
+                adminDashboardButton.setOnClickListener(v -> {
+                    Intent intent = new Intent(SettingsActivity.this, AdminDashboardActivity.class);
+                    startActivity(intent);
+                });
+            }
         }
     }
 

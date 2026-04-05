@@ -25,7 +25,6 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
 import java.util.HashMap;
-import java.util.Locale;
 import java.util.Map;
 
 public class AdminDashboardActivity extends AppCompatActivity {
@@ -33,17 +32,22 @@ public class AdminDashboardActivity extends AppCompatActivity {
     private LinearLayout sensorsContainer;
     private Handler refreshHandler;
     private Runnable refreshRunnable;
-    private static final long REFRESH_INTERVAL_MS = 2000; // Update every 2 seconds
-    private static final int DISCONNECTION_THRESHOLD = 5; // Mark disconnected after 5 missed refreshes
-    
+    private static final long REFRESH_INTERVAL_MS = 2000;
+
     private DatabaseReference liveSensorsRef;
     private ValueEventListener liveSensorsListener;
-    private Map<String, Integer> sensorMissedRefreshCount = new HashMap<>(); // Track consecutive refreshes without data
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         ThemeHelper.applyTheme(this);
         super.onCreate(savedInstanceState);
+
+        // Permission check: Only admin users can access this activity
+        if (!SessionState.isAdmin(this)) {
+            finish();
+            return;
+        }
+
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_admin_dashboard);
 
@@ -75,12 +79,11 @@ public class AdminDashboardActivity extends AppCompatActivity {
     }
 
     private void setupFirebaseListener() {
-        // Listen to Firebase for real-time sensor data
         liveSensorsRef = FirebaseDatabase.getInstance().getReference("sound_data/live");
         liveSensorsListener = new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
-                // Just receive the data, the refreshSensorStatus will process it
+                // Real-time updates handled by refreshSensorStatus
             }
 
             @Override
@@ -113,55 +116,43 @@ public class AdminDashboardActivity extends AppCompatActivity {
         }
     }
 
-    private void loadSensorStatus() {
-        sensorsContainer.removeAllViews();
-        Map<String, SensorData> sensors = getSensorData();
-
-        if (sensors.isEmpty()) {
-            showNoSensorsMessage();
-        } else {
-            displaySensors(sensors);
-        }
-    }
-
     private void refreshSensorStatus() {
-        // Get current Firebase snapshot to check which sensors are actively sending data
         liveSensorsRef.get().addOnSuccessListener(snapshot -> {
-            // Get list of sensors currently sending data to Firebase
-            java.util.Set<String> activeSensorsInFirebase = new java.util.HashSet<>();
+            sensorsContainer.removeAllViews();
+            Map<String, SensorData> sensors = new HashMap<>();
+
+            // Read ALL sensors from Firebase (not just online ones)
             for (DataSnapshot child : snapshot.getChildren()) {
                 String sensorKey = child.getKey();
-                if (sensorKey != null && !sensorKey.trim().isEmpty()) {
-                    activeSensorsInFirebase.add(sensorKey);
-                }
+                if (sensorKey == null || sensorKey.trim().isEmpty())
+                    continue;
+
+                SensorData sensor = new SensorData();
+                sensor.id = sensorKey.trim();
+
+                // Get values from Firebase
+                Object valueObj = child.child("value").getValue();
+                sensor.value = valueObj != null ? valueObj.toString() : "N/A";
+
+                String firebaseStatus = child.child("status").getValue(String.class);
+                sensor.firebaseStatus = firebaseStatus != null ? firebaseStatus : "unknown";
+
+                String location = child.child("location").getValue(String.class);
+                sensor.location = location != null ? location : "Unassigned";
+
+                Object lastSeenObj = child.child("lastSeen").getValue();
+                sensor.lastSeen = lastSeenObj != null ? lastSeenObj.toString() : "N/A";
+
+                // Get metadata from SharedPreferences
+                android.content.SharedPreferences prefs = getSharedPreferences("sensor_data", Context.MODE_PRIVATE);
+                sensor.name = prefs.getString(sensorKey.trim() + "_name", "Sensor_" + sensorKey.trim());
+                sensor.room = prefs.getString(sensorKey.trim() + "_room", "");
+
+                sensor.isConnected = "online".equalsIgnoreCase(firebaseStatus);
+
+                sensors.put(sensorKey.trim(), sensor);
             }
-            
-            // Get all configured sensors
-            android.content.SharedPreferences prefs = getSharedPreferences("sensor_data", Context.MODE_PRIVATE);
-            String allConfigured = prefs.getString("all_configured_ids", "");
-            
-            if (!allConfigured.isEmpty()) {
-                String[] configuredIds = allConfigured.split(",");
-                
-                // Update missed refresh count for each sensor
-                for (String id : configuredIds) {
-                    if (!id.trim().isEmpty()) {
-                        if (activeSensorsInFirebase.contains(id.trim())) {
-                            // Sensor is currently sending data - reset counter
-                            sensorMissedRefreshCount.put(id.trim(), 0);
-                        } else {
-                            // Sensor is not in Firebase data - increment miss counter
-                            int missCount = sensorMissedRefreshCount.getOrDefault(id.trim(), 0);
-                            sensorMissedRefreshCount.put(id.trim(), missCount + 1);
-                        }
-                    }
-                }
-            }
-            
-            // Reload the display with updated status
-            sensorsContainer.removeAllViews();
-            Map<String, SensorData> sensors = getSensorData();
-            
+
             if (sensors.isEmpty()) {
                 showNoSensorsMessage();
             } else {
@@ -193,8 +184,7 @@ public class AdminDashboardActivity extends AppCompatActivity {
         MaterialCardView card = new MaterialCardView(this);
         LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-        );
+                LinearLayout.LayoutParams.WRAP_CONTENT);
         cardParams.setMargins(16, 8, 16, 8);
         card.setLayoutParams(cardParams);
         card.setCardElevation(dpToPx(4));
@@ -202,8 +192,7 @@ public class AdminDashboardActivity extends AppCompatActivity {
         LinearLayout cardContent = new LinearLayout(this);
         cardContent.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-        ));
+                LinearLayout.LayoutParams.WRAP_CONTENT));
         cardContent.setOrientation(LinearLayout.VERTICAL);
         cardContent.setPadding(dpToPx(16), dpToPx(16), dpToPx(16), dpToPx(16));
 
@@ -219,9 +208,9 @@ public class AdminDashboardActivity extends AppCompatActivity {
         TextView statusText = new TextView(this);
         statusText.setText("Status: " + (sensor.isConnected ? "Connected" : "Disconnected"));
         statusText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-        statusText.setTextColor(sensor.isConnected ?
-                getResources().getColor(android.R.color.holo_green_dark, getTheme()) :
-                getResources().getColor(android.R.color.holo_red_dark, getTheme()));
+        statusText
+                .setTextColor(sensor.isConnected ? getResources().getColor(android.R.color.holo_green_dark, getTheme())
+                        : getResources().getColor(android.R.color.holo_red_dark, getTheme()));
         statusText.setPadding(0, dpToPx(8), 0, 0);
         cardContent.addView(statusText);
 
@@ -241,82 +230,32 @@ public class AdminDashboardActivity extends AppCompatActivity {
         roomText.setPadding(0, dpToPx(4), 0, 0);
         cardContent.addView(roomText);
 
-        // Last Update
-        TextView lastUpdateText = new TextView(this);
-        lastUpdateText.setText("Last Update: " + sensor.timeSinceLastUpdate);
-        lastUpdateText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-        lastUpdateText.setTextColor(getResources().getColor(android.R.color.darker_gray, getTheme()));
-        lastUpdateText.setPadding(0, dpToPx(4), 0, 0);
-        cardContent.addView(lastUpdateText);
+        // Firebase Status
+        TextView firebaseStatusText = new TextView(this);
+        firebaseStatusText.setText("Firebase Status: " + sensor.firebaseStatus);
+        firebaseStatusText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        firebaseStatusText.setTextColor(getResources().getColor(android.R.color.darker_gray, getTheme()));
+        firebaseStatusText.setPadding(0, dpToPx(4), 0, 0);
+        cardContent.addView(firebaseStatusText);
+
+        // Location
+        TextView locationText = new TextView(this);
+        locationText.setText("Location: " + sensor.location);
+        locationText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        locationText.setTextColor(getResources().getColor(android.R.color.darker_gray, getTheme()));
+        locationText.setPadding(0, dpToPx(4), 0, 0);
+        cardContent.addView(locationText);
+
+        // Last Seen
+        TextView lastSeenText = new TextView(this);
+        lastSeenText.setText("Last Seen: " + formatTimestamp(sensor.lastSeen));
+        lastSeenText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        lastSeenText.setTextColor(getResources().getColor(android.R.color.darker_gray, getTheme()));
+        lastSeenText.setPadding(0, dpToPx(4), 0, 0);
+        cardContent.addView(lastSeenText);
 
         card.addView(cardContent);
         return card;
-    }
-
-    private Map<String, SensorData> getSensorData() {
-        Map<String, SensorData> sensors = new HashMap<>();
-        
-        // Get sensor names from SharedPreferences
-        android.content.SharedPreferences prefs = getSharedPreferences("sensor_data", Context.MODE_PRIVATE);
-        String allConfigured = prefs.getString("all_configured_ids", "");
-        
-        if (!allConfigured.isEmpty()) {
-            String[] ids = allConfigured.split(",");
-            for (String id : ids) {
-                if (!id.trim().isEmpty()) {
-                    SensorData sensor = new SensorData();
-                    sensor.id = id.trim();
-                    sensor.name = prefs.getString(id.trim() + "_name", "Unknown Sensor_" + id.trim());
-                    sensor.type = prefs.getString(id.trim() + "_type", "Unknown");
-                    sensor.room = prefs.getString(id.trim() + "_room", "");
-                    
-                    // Check if sensor missed 5 or more refreshes
-                    int missCount = sensorMissedRefreshCount.getOrDefault(id.trim(), 0);
-                    
-                    if (missCount >= DISCONNECTION_THRESHOLD) {
-                        // Sensor missed 5 refreshes - mark as disconnected
-                        sensor.isConnected = false;
-                        sensor.timeSinceLastUpdate = "Disconnected (" + missCount + " missed refreshes)";
-                    } else if (missCount > 0) {
-                        // Sensor is missing data but not yet at threshold
-                        sensor.isConnected = true; // Still show as connected while we're counting
-                        sensor.timeSinceLastUpdate = "Active (" + missCount + "/" + DISCONNECTION_THRESHOLD + " missed)";
-                    } else {
-                        // Sensor is actively sending data
-                        sensor.isConnected = true;
-                        sensor.timeSinceLastUpdate = "Active";
-                    }
-                    
-                    sensors.put(id.trim(), sensor);
-                }
-            }
-        }
-
-        return sensors;
-    }
-
-    private String formatTimeDifference(long diffMs) {
-        if (diffMs <= 0) {
-            return "Never";
-        }
-        
-        long seconds = diffMs / 1000;
-        if (seconds < 60) {
-            return seconds + " seconds ago";
-        }
-        
-        long minutes = seconds / 60;
-        if (minutes < 60) {
-            return minutes + " minutes ago";
-        }
-        
-        long hours = minutes / 60;
-        if (hours < 24) {
-            return hours + " hours ago";
-        }
-        
-        long days = hours / 24;
-        return days + " days ago";
     }
 
     private int dpToPx(int dp) {
@@ -326,13 +265,26 @@ public class AdminDashboardActivity extends AppCompatActivity {
                 getResources().getDisplayMetrics()));
     }
 
+    private String formatTimestamp(String timestamp) {
+        if (timestamp == null || timestamp.equals("N/A")) {
+            return "N/A";
+        }
+        try {
+            long milliseconds = Long.parseLong(timestamp);
+            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("MMM d, yyyy h:mm a",
+                    java.util.Locale.getDefault());
+            return sdf.format(new java.util.Date(milliseconds));
+        } catch (NumberFormatException e) {
+            return timestamp;
+        }
+    }
+
     @Override
     public boolean onSupportNavigateUp() {
         finish();
         return true;
     }
 
-    // Inner class to hold sensor data
     private static class SensorData {
         String id;
         String name;
@@ -340,12 +292,18 @@ public class AdminDashboardActivity extends AppCompatActivity {
         boolean isConnected;
         String room;
         String timeSinceLastUpdate;
-        long lastSeenPercentile;
+        String value; // Sound level from Firebase
+        String firebaseStatus; // Status field from Firebase
+        String location; // Location field from Firebase
+        String lastSeen; // Last seen timestamp from Firebase
 
         SensorData() {
             this.room = "";
             this.timeSinceLastUpdate = "Never";
-            this.lastSeenPercentile = 0;
+            this.value = "N/A";
+            this.firebaseStatus = "unknown";
+            this.location = "Unassigned";
+            this.lastSeen = "N/A";
         }
     }
 }

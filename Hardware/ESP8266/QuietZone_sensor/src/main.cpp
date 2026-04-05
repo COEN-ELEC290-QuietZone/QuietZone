@@ -65,19 +65,18 @@ void loop()
   mqttManager.maintainConnection();
 
   float soundLevel = soundSensor.readSoundLevel();
-  String soundStatus = soundSensor.getStatus();
 
   soundSensor.printDebugInfo();
 
-  Serial.println("Simple Sound Level: " + String(soundLevel, 1) + " dB, Status: " + soundStatus);
+  Serial.println("Simple Sound Level: " + String(soundLevel, 1) + " dB");
 
   if (mqttManager.isConnected() && mqttManager.shouldPublish())
   {
-      if (mqttManager.publishSoundData(soundLevel, soundStatus))
-      {
-          Serial.println("[MQTT] Data published: Sensor 1, " + String(soundLevel, 1) + " dB, Status: " + soundStatus);
-      }
-      mqttManager.updateLastPublish();
+    if (mqttManager.publishSoundData(soundLevel))
+    {
+      Serial.println("[MQTT] Data published: Sensor 1, " + String(soundLevel, 1) + " dB");
+    }
+    mqttManager.updateLastPublish();
   }
 
   Serial.println("---");
