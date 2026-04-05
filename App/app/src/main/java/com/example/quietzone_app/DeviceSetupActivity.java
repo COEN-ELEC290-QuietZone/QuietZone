@@ -54,7 +54,7 @@ public class DeviceSetupActivity extends AppCompatActivity {
                 if (hasAllRequiredPermissions()) {
                     startSetupScan();
                 } else {
-                    showToast(getString(R.string.setup_permission_required));
+                    showToast("Wi-Fi scan permission is required for setup.");
                 }
             });
 
@@ -72,7 +72,7 @@ public class DeviceSetupActivity extends AppCompatActivity {
 
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            getSupportActionBar().setTitle(R.string.setup_title);
+            getSupportActionBar().setTitle("Device Setup");
             if (toolbar.getNavigationIcon() != null) {
                 toolbar.getNavigationIcon().setTint(toolbarTextColor);
             }
@@ -161,16 +161,16 @@ public class DeviceSetupActivity extends AppCompatActivity {
 
     private void startSetupScan() {
         if (wifiManager == null) {
-            showToast(getString(R.string.setup_wifi_unavailable));
+            showToast("Wi-Fi service unavailable on this device.");
             return;
         }
 
         boolean started = wifiManager.startScan();
         if (!started) {
-            statusText.setText(R.string.setup_scan_failed);
+            statusText.setText("Scan failed. Showing cached results.");
             refreshSetupDevicesFromScan();
         } else {
-            statusText.setText(R.string.setup_scanning);
+            statusText.setText("Scanning setup hotspots...");
         }
     }
 
@@ -183,7 +183,7 @@ public class DeviceSetupActivity extends AppCompatActivity {
         try {
             results = wifiManager.getScanResults();
         } catch (SecurityException ex) {
-            statusText.setText(R.string.setup_permission_required);
+            statusText.setText("Wi-Fi scan permission is required for setup.");
             return;
         }
 
@@ -207,9 +207,9 @@ public class DeviceSetupActivity extends AppCompatActivity {
         ssidAdapter.notifyDataSetChanged();
 
         if (setupSsids.isEmpty()) {
-            statusText.setText(R.string.setup_no_devices);
+            statusText.setText("No setup devices found. Move closer and scan again.");
         } else {
-            statusText.setText(getString(R.string.setup_found_devices, setupSsids.size()));
+            statusText.setText(String.format("Found %d setup device(s). Tap one to connect.", setupSsids.size()));
         }
     }
 
@@ -221,7 +221,7 @@ public class DeviceSetupActivity extends AppCompatActivity {
 
     private void connectToSetupNetwork(@NonNull String ssid) {
         if (connectivityManager == null) {
-            showToast(getString(R.string.setup_connect_failed));
+            showToast("Could not connect to selected setup network.");
             return;
         }
 
@@ -240,7 +240,7 @@ public class DeviceSetupActivity extends AppCompatActivity {
                 .setNetworkSpecifier(specifier)
                 .build();
 
-        statusText.setText(getString(R.string.setup_connecting, ssid));
+        statusText.setText(String.format("Connecting to %s...", ssid));
         endpointText.setText("");
 
         networkCallback = new ConnectivityManager.NetworkCallback() {
@@ -248,23 +248,23 @@ public class DeviceSetupActivity extends AppCompatActivity {
             public void onAvailable(@NonNull Network network) {
                 runOnUiThread(() -> {
                     connectivityManager.bindProcessToNetwork(network);
-                    statusText.setText(getString(R.string.setup_connected, ssid));
+                    statusText.setText(String.format("Connected to %s", ssid));
 
                     if (ssid.startsWith("IOT_PI_") || ssid.startsWith(PREFIX_PI)) {
-                        endpointText.setText(getString(R.string.setup_pi_endpoint));
+                        endpointText.setText("Send configuration to: http://192.168.4.1/setup");
                     } else {
-                        endpointText.setText(getString(R.string.setup_esp_endpoint));
+                        endpointText.setText("Send configuration to: http://192.168.4.1/config");
                     }
 
-                    showToast(getString(R.string.setup_connected_toast, ssid));
+                    showToast(String.format("Connected to %s", ssid));
                 });
             }
 
             @Override
             public void onUnavailable() {
                 runOnUiThread(() -> {
-                    statusText.setText(R.string.setup_connect_failed);
-                    showToast(getString(R.string.setup_connect_failed));
+                    statusText.setText("Could not connect to selected setup network.");
+                    showToast("Could not connect to selected setup network.");
                 });
             }
         };
