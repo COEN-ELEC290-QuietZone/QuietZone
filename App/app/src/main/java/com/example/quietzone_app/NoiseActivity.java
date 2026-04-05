@@ -154,13 +154,16 @@ public class NoiseActivity extends AppCompatActivity {
     }
 
     private void syncRoomsFromDatabase(DataSnapshot liveSnapshot) {
+        Log.d("NoiseActivity", "syncRoomsFromDatabase called with snapshot: " + liveSnapshot.getValue());
         List<String> sensorKeys = new ArrayList<>();
         for (DataSnapshot child : liveSnapshot.getChildren()) {
             String sensorKey = child.getKey();
             if (sensorKey != null && !sensorKey.trim().isEmpty()) {
+                Log.d("NoiseActivity", "Found sensor key: " + sensorKey + " with data: " + child.getValue());
                 sensorKeys.add(sensorKey);
             }
         }
+        Log.d("NoiseActivity", "Total sensor keys found: " + sensorKeys.size());
 
         // We don't sort here anymore, we sort in sortRooms()
         List<String> keysToRemove = new ArrayList<>();
@@ -185,8 +188,12 @@ public class NoiseActivity extends AppCompatActivity {
                 room.sensorKey = sensorKey;
                 room.roomName = toRoomName(sensorKey);
                 room.latestSoundLevel = Float.NaN;
+                Log.d("NoiseActivity", "Creating new room for sensor: " + sensorKey);
                 roomBySensorKey.put(sensorKey, room);
                 attachSensorListener(room);
+            } else {
+                Log.d("NoiseActivity", "Room already exists for sensor: " + sensorKey + ", existing sound level: "
+                        + roomBySensorKey.get(sensorKey).latestSoundLevel);
             }
         }
 
@@ -241,8 +248,12 @@ public class NoiseActivity extends AppCompatActivity {
                 try {
                     DataSnapshot valueSnapshot = dataSnapshot.child("value");
                     Object value = valueSnapshot.exists() ? valueSnapshot.getValue() : dataSnapshot.getValue();
+                    Log.d("NoiseActivity", "Received data for " + room.sensorKey + ": " + dataSnapshot.getValue()
+                            + ", value: " + value);
                     if (value != null) {
                         room.latestSoundLevel = Float.parseFloat(value.toString());
+                        Log.d("NoiseActivity",
+                                "Parsed sound level for " + room.sensorKey + ": " + room.latestSoundLevel);
                         updateRoomUi(room);
                     }
                 } catch (Exception e) {
@@ -263,12 +274,13 @@ public class NoiseActivity extends AppCompatActivity {
     }
 
     private void saveSensorTracking(String sensorKey, String roomName) {
-        android.content.SharedPreferences prefs = getSharedPreferences("sensor_data", android.content.Context.MODE_PRIVATE);
+        android.content.SharedPreferences prefs = getSharedPreferences("sensor_data",
+                android.content.Context.MODE_PRIVATE);
         android.content.SharedPreferences.Editor editor = prefs.edit();
-        
+
         // Get existing configured IDs
         String allConfigured = prefs.getString("all_configured_ids", "");
-        
+
         // Add this sensor ID if not already present
         if (!allConfigured.contains(sensorKey)) {
             if (allConfigured.isEmpty()) {
@@ -278,25 +290,30 @@ public class NoiseActivity extends AppCompatActivity {
             }
             editor.putString("all_configured_ids", allConfigured);
         }
-        
+
         // Save sensor metadata
         editor.putString(sensorKey + "_name", roomName);
         editor.putString(sensorKey + "_room", roomName);
-        
+
         // Update timestamp of when data was actually RECEIVED from Firebase
         // This is the key difference - we only update this when onDataChange is called
         editor.putLong(sensorKey + "_lastDataReceivedMs", System.currentTimeMillis());
-        
+
         editor.apply();
     }
 
     private void updateRoomUi(RoomItem room) {
         float soundLevel = room.latestSoundLevel;
+        Log.d("NoiseActivity", "updateRoomUi called for " + room.sensorKey + " with sound level: " + soundLevel);
 
         if (room.soundText != null) {
-            room.soundText.setText(Float.isNaN(soundLevel)
+            String displayText = Float.isNaN(soundLevel)
                     ? getString(R.string.room_sound_placeholder)
-                    : getString(R.string.room_sound_format, soundLevel));
+                    : getString(R.string.room_sound_format, soundLevel);
+            Log.d("NoiseActivity", "Setting soundText for " + room.sensorKey + " to: " + displayText);
+            room.soundText.setText(displayText);
+        } else {
+            Log.w("NoiseActivity", "soundText is null for " + room.sensorKey);
         }
 
         // ✅ ALWAYS update (removed threshold)
@@ -384,6 +401,8 @@ public class NoiseActivity extends AppCompatActivity {
         @Override
         public View getGroupView(int groupPosition, boolean isExpanded, View convertView, ViewGroup parent) {
             RoomItem room = rooms.get(groupPosition);
+            Log.d("NoiseActivity", "getGroupView: Displaying group for room " + room.sensorKey +
+                    ", latestSoundLevel=" + room.latestSoundLevel + ", isExpanded=" + isExpanded);
             View view = convertView == null
                     ? LayoutInflater.from(NoiseActivity.this).inflate(R.layout.list_item_room_group, parent, false)
                     : convertView;
@@ -435,11 +454,18 @@ public class NoiseActivity extends AppCompatActivity {
             room.speedView.setSpeedTextSize(0);
             room.speedView.setWithTremble(false);
 
+            Log.d("NoiseActivity", "getChildView: Assigned views for room " + room.sensorKey +
+                    ", latestSoundLevel=" + room.latestSoundLevel);
+
             // ✅ FORCE update when view is created
             if (!Float.isNaN(room.latestSoundLevel)) {
                 updateSpeedometerInstant(room.speedView, room.latestSoundLevel);
                 room.lastDisplayedSpeed = room.latestSoundLevel;
             }
+
+            // Update text views with current Firebase data
+            Log.d("NoiseActivity", "Calling updateRoomUi for " + room.sensorKey);
+            updateRoomUi(room);
 
             openRoomButton.setOnClickListener(v -> {
                 Intent roomIntent = new Intent(NoiseActivity.this, RoomActivity.class);
@@ -487,15 +513,19 @@ public class NoiseActivity extends AppCompatActivity {
     }
 
     private void applyStatusText(TextView statusView, float dB) {
+        Log.d("NoiseActivity", "applyStatusText: Setting status for dB=" + dB);
         if (dB < 50) {
             statusView.setText(R.string.room_status_quiet);
             statusView.setTextColor(getResources().getColor(R.color.status_quiet, getTheme()));
+            Log.d("NoiseActivity", "Status set to QUIET");
         } else if (dB < 70) {
             statusView.setText(R.string.room_status_moderate);
             statusView.setTextColor(getResources().getColor(R.color.status_moderate, getTheme()));
+            Log.d("NoiseActivity", "Status set to MODERATE");
         } else {
             statusView.setText(R.string.room_status_loud);
             statusView.setTextColor(getResources().getColor(R.color.status_loud, getTheme()));
+            Log.d("NoiseActivity", "Status set to LOUD");
         }
     }
 

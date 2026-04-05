@@ -17,6 +17,7 @@ private:
     static const char *mqtt_server;
     static const char *sensorId;
     static const char *sensorName;
+    static const char *location;
     static const unsigned long publishInterval = 500;
 
 public:
@@ -25,7 +26,7 @@ public:
     void connectWiFi();
     void connectMQTT();
     void maintainConnection();
-    bool publishSoundData(float dbLevel, const String &status);
+    bool publishSoundData(float dbLevel);
     bool isConnected();
     bool shouldPublish();
     void updateLastPublish();
