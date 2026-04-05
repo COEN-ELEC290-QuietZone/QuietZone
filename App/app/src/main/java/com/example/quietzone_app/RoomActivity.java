@@ -138,7 +138,7 @@ public class RoomActivity extends AppCompatActivity {
         historyChart = findViewById(R.id.historyChart);
         chartDateLabel = findViewById(R.id.chartDateLabel);
         speedLabel = findViewById(R.id.speedLabel);
-        soundText = findViewById(R.id.statusText);
+        soundText = findViewById(R.id.soundText);
         statusText = findViewById(R.id.statusText);
         ListView readingsList = findViewById(R.id.readingsList);
 

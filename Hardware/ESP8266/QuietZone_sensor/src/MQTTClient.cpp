@@ -2,7 +2,6 @@
 const char *MQTTClientManager::ssid = "Your_SSID";
 const char *MQTTClientManager::password = "Your_PASSWORD";
 const char *MQTTClientManager::mqtt_server = "IP_ADDRESS";
-const char *MQTTClientManager::sensorId = "esp8266_sensor_01";
 const char *MQTTClientManager::sensorId = "12345abcde";
 const char *MQTTClientManager::sensorName = "Sensor 1 ESP8266";
 const char *MQTTClientManager::location = "Study Room 8266";
