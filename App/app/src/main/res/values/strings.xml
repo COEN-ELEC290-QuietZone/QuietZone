@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">QuietZone_app</string>
+    <string name="app_name">QuietZone</string>
     <string name="settings_heading">Setting</string>
     <string name="profile_name">Profile Name</string>
     <string name="profile_avatar_desc">Profile Avatar</string>

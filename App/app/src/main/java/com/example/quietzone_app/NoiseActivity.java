@@ -2,6 +2,8 @@ package com.example.quietzone_app;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.SystemClock;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -15,14 +17,17 @@ import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.constraintlayout.widget.Group;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.github.anastr.speedviewlib.SpeedView;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.android.material.button.MaterialButton;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
@@ -31,12 +36,15 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ServerValue;
 import com.google.firebase.database.ValueEventListener;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 public class NoiseActivity extends AppCompatActivity {
@@ -53,8 +61,24 @@ public class NoiseActivity extends AppCompatActivity {
     private ValueEventListener favoritesListener;
     private FirebaseListenerRegistry.ListenerHandle liveSensorsHandle;
 
+    // Focus Session Variables
+    private Group sessionGroup;
+    private Button startFocusButton;
+    private TextView timerText;
+    private TextView streakCounterText;
+    private MaterialButton pauseResumeButton, stopButton;
+
+    private Handler timerHandler = new Handler();
+    private long startTime = 0L;
+    private long timeInMilliseconds = 0L;
+    private long timeSwapBuff = 0L;
+    private long updatedTime = 0L;
+    private boolean isTimerRunning = false;
+    private long sessionStartTimestamp = 0L;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        ThemeHelper.applyTheme(this);
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_noise);
@@ -72,6 +96,7 @@ public class NoiseActivity extends AppCompatActivity {
         }
 
         setupNavigation();
+        setupFocusSession();
 
         expandableListView = findViewById(R.id.roomExpandableList);
         expandableListView.setGroupIndicator(null);
@@ -115,6 +140,171 @@ public class NoiseActivity extends AppCompatActivity {
         liveSensorsHandle = FirebaseListenerRegistry.register(liveSensorsRef, liveSensorsListener);
     }
 
+    private void setupFocusSession() {
+        startFocusButton = findViewById(R.id.startFocusButton);
+        sessionGroup = findViewById(R.id.sessionGroup);
+        timerText = findViewById(R.id.timerText);
+        streakCounterText = findViewById(R.id.streakCounterText);
+        pauseResumeButton = findViewById(R.id.pauseResumeButton);
+        stopButton = findViewById(R.id.stopButton);
+
+        startFocusButton.setOnClickListener(v -> startSession());
+
+        pauseResumeButton.setOnClickListener(v -> {
+            if (isTimerRunning) {
+                pauseSession();
+            } else {
+                resumeSession();
+            }
+        });
+
+        stopButton.setOnClickListener(v -> stopSession());
+
+        // Listen for streak updates
+        String uid = FirebaseAuth.getInstance().getUid();
+        if (uid != null) {
+            DatabaseReference statsRef = FirebaseDatabase.getInstance().getReference("users").child(uid).child("focus_stats");
+            statsRef.addValueEventListener(new ValueEventListener() {
+                @Override
+                public void onDataChange(@NonNull DataSnapshot snapshot) {
+                    if (snapshot.exists()) {
+                        Integer streak = snapshot.child("currentStreak").getValue(Integer.class);
+                        if (streak != null) {
+                            streakCounterText.setText("🔥 " + streak);
+                        }
+                    }
+                }
+
+                @Override
+                public void onCancelled(@NonNull DatabaseError error) {
+                }
+            });
+        }
+    }
+
+    private void startSession() {
+        startFocusButton.setVisibility(View.GONE);
+        sessionGroup.setVisibility(View.VISIBLE);
+        
+        sessionStartTimestamp = System.currentTimeMillis();
+        startTime = SystemClock.uptimeMillis();
+        timerHandler.postDelayed(updateTimerThread, 0);
+        isTimerRunning = true;
+        
+        pauseResumeButton.setText("Pause");
+        pauseResumeButton.setIconResource(android.R.drawable.ic_media_pause);
+    }
+
+    private void pauseSession() {
+        timeSwapBuff += timeInMilliseconds;
+        timerHandler.removeCallbacks(updateTimerThread);
+        isTimerRunning = false;
+        
+        pauseResumeButton.setText("Resume");
+        pauseResumeButton.setIconResource(android.R.drawable.ic_media_play);
+    }
+
+    private void resumeSession() {
+        startTime = SystemClock.uptimeMillis();
+        timerHandler.postDelayed(updateTimerThread, 0);
+        isTimerRunning = true;
+        
+        pauseResumeButton.setText("Pause");
+        pauseResumeButton.setIconResource(android.R.drawable.ic_media_pause);
+    }
+
+    private void stopSession() {
+        if (isTimerRunning) {
+            pauseSession();
+        }
+        
+        long durationSec = (timeSwapBuff + timeInMilliseconds) / 1000;
+        
+        if (durationSec < 5) {
+            Toast.makeText(this, "Session too short to save!", Toast.LENGTH_SHORT).show();
+            resetFocusUi();
+            return;
+        }
+
+        saveSessionToFirebase(durationSec);
+    }
+
+    private void resetFocusUi() {
+        timerHandler.removeCallbacks(updateTimerThread);
+        startTime = 0L;
+        timeInMilliseconds = 0L;
+        timeSwapBuff = 0L;
+        updatedTime = 0L;
+        isTimerRunning = false;
+        
+        timerText.setText("00:00:00");
+        sessionGroup.setVisibility(View.GONE);
+        startFocusButton.setVisibility(View.VISIBLE);
+    }
+
+    private Runnable updateTimerThread = new Runnable() {
+        public void run() {
+            timeInMilliseconds = SystemClock.uptimeMillis() - startTime;
+            updatedTime = timeSwapBuff + timeInMilliseconds;
+            
+            int totalSecs = (int) (updatedTime / 1000);
+            int hours = totalSecs / 3600;
+            int mins = (totalSecs % 3600) / 60;
+            int secs = totalSecs % 60;
+            
+            timerText.setText(String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, mins, secs));
+            timerHandler.postDelayed(this, 0);
+        }
+    };
+
+    private void saveSessionToFirebase(long durationSec) {
+        String uid = FirebaseAuth.getInstance().getUid();
+        if (uid == null) return;
+
+        DatabaseReference historyRef = FirebaseDatabase.getInstance().getReference("users").child(uid).child("focus_history");
+        String date = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+
+        Map<String, Object> sessionData = new HashMap<>();
+        sessionData.put("startTime", sessionStartTimestamp);
+        sessionData.put("endTime", System.currentTimeMillis());
+        sessionData.put("duration", durationSec);
+        sessionData.put("date", date);
+
+        historyRef.push().setValue(sessionData).addOnSuccessListener(aVoid -> {
+            updateStreakByOne(uid);
+            new AlertDialog.Builder(NoiseActivity.this)
+                    .setTitle("Focus Session Ended")
+                    .setMessage("Great job! You focused for " + (durationSec / 60) + "m " + (durationSec % 60) + "s.")
+                    .setPositiveButton("Awesome", (dialog, which) -> resetFocusUi())
+                    .setCancelable(false)
+                    .show();
+        }).addOnFailureListener(e -> {
+            Toast.makeText(NoiseActivity.this, "Failed to save session", Toast.LENGTH_SHORT).show();
+            resetFocusUi();
+        });
+    }
+
+    private void updateStreakByOne(String uid) {
+        DatabaseReference statsRef = FirebaseDatabase.getInstance().getReference("users").child(uid).child("focus_stats");
+        statsRef.child("currentStreak").runTransaction(new com.google.firebase.database.Transaction.Handler() {
+            @NonNull
+            @Override
+            public com.google.firebase.database.Transaction.Result doTransaction(@NonNull com.google.firebase.database.MutableData mutableData) {
+                Integer current = mutableData.getValue(Integer.class);
+                if (current == null) {
+                    mutableData.setValue(1);
+                } else {
+                    mutableData.setValue(current + 1);
+                }
+                return com.google.firebase.database.Transaction.success(mutableData);
+            }
+
+            @Override
+            public void onComplete(com.google.firebase.database.DatabaseError databaseError, boolean b, com.google.firebase.database.DataSnapshot dataSnapshot) {
+            }
+        });
+    }
+
     private void setupNavigation() {
         BottomNavigationView bottomNav = findViewById(R.id.bottomNavigation);
         bottomNav.setSelectedItemId(R.id.nav_home);
@@ -151,6 +341,7 @@ public class NoiseActivity extends AppCompatActivity {
                 room.sensorRef.removeEventListener(room.sensorListener);
             }
         }
+        timerHandler.removeCallbacks(updateTimerThread);
     }
 
     private void syncRoomsFromDatabase(DataSnapshot liveSnapshot) {
@@ -165,7 +356,6 @@ public class NoiseActivity extends AppCompatActivity {
         }
         Log.d("NoiseActivity", "Total sensor keys found: " + sensorKeys.size());
 
-        // We don't sort here anymore, we sort in sortRooms()
         List<String> keysToRemove = new ArrayList<>();
         for (String existingKey : roomBySensorKey.keySet()) {
             if (!sensorKeys.contains(existingKey)) {
@@ -236,9 +426,6 @@ public class NoiseActivity extends AppCompatActivity {
         room.sensorListener = new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                // Track sensor in SharedPreferences
-                saveSensorTracking(room.sensorKey, room.roomName);
-
                 if (!dataSnapshot.exists()) {
                     room.latestSoundLevel = Float.NaN;
                     updateRoomUi(room);
@@ -273,35 +460,6 @@ public class NoiseActivity extends AppCompatActivity {
         room.sensorHandle = FirebaseListenerRegistry.register(room.sensorRef, room.sensorListener);
     }
 
-    private void saveSensorTracking(String sensorKey, String roomName) {
-        android.content.SharedPreferences prefs = getSharedPreferences("sensor_data",
-                android.content.Context.MODE_PRIVATE);
-        android.content.SharedPreferences.Editor editor = prefs.edit();
-
-        // Get existing configured IDs
-        String allConfigured = prefs.getString("all_configured_ids", "");
-
-        // Add this sensor ID if not already present
-        if (!allConfigured.contains(sensorKey)) {
-            if (allConfigured.isEmpty()) {
-                allConfigured = sensorKey;
-            } else {
-                allConfigured += "," + sensorKey;
-            }
-            editor.putString("all_configured_ids", allConfigured);
-        }
-
-        // Save sensor metadata
-        editor.putString(sensorKey + "_name", roomName);
-        editor.putString(sensorKey + "_room", roomName);
-
-        // Update timestamp of when data was actually RECEIVED from Firebase
-        // This is the key difference - we only update this when onDataChange is called
-        editor.putLong(sensorKey + "_lastDataReceivedMs", System.currentTimeMillis());
-
-        editor.apply();
-    }
-
     private void updateRoomUi(RoomItem room) {
         float soundLevel = room.latestSoundLevel;
         Log.d("NoiseActivity", "updateRoomUi called for " + room.sensorKey + " with sound level: " + soundLevel);
@@ -316,7 +474,6 @@ public class NoiseActivity extends AppCompatActivity {
             Log.w("NoiseActivity", "soundText is null for " + room.sensorKey);
         }
 
-        // ✅ ALWAYS update (removed threshold)
         if (room.speedView != null && !Float.isNaN(soundLevel)) {
             updateSpeedometerInstant(room.speedView, soundLevel);
             room.lastDisplayedSpeed = soundLevel;
@@ -454,10 +611,6 @@ public class NoiseActivity extends AppCompatActivity {
             room.speedView.setSpeedTextSize(0);
             room.speedView.setWithTremble(false);
 
-            Log.d("NoiseActivity", "getChildView: Assigned views for room " + room.sensorKey +
-                    ", latestSoundLevel=" + room.latestSoundLevel);
-
-            // ✅ FORCE update when view is created
             if (!Float.isNaN(room.latestSoundLevel)) {
                 updateSpeedometerInstant(room.speedView, room.latestSoundLevel);
                 room.lastDisplayedSpeed = room.latestSoundLevel;
@@ -536,8 +689,6 @@ public class NoiseActivity extends AppCompatActivity {
     private void updateSpeedometerInstant(SpeedView speedView, float level) {
         float clampedLevel = Math.max(0f, Math.min(level, speedView.getMaxSpeed()));
         speedView.speedTo(clampedLevel, 0);
-
-        // ✅ FORCE redraw (important)
         speedView.invalidate();
     }
 

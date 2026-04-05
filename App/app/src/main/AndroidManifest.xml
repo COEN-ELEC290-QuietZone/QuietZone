@@ -30,9 +30,6 @@
             android:name=".MainActivity"
             android:exported="false" />
         <activity
-            android:name=".MainActivity"
-            android:exported="false" />
-        <activity
             android:name=".DeviceSetupActivity"
             android:exported="false" />
         <activity
@@ -57,6 +54,11 @@
             android:exported="false" />
         <activity
             android:name=".AdminDashboardActivity"
+            android:exported="false" />
+        <activity
+            android:name=".FocusActivity"
+            android:label="Focus Session"
+            android:parentActivityName=".NoiseActivity"
             android:exported="false" />
     </application>
 
