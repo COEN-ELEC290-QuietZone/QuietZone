@@ -11,7 +11,7 @@
         android:layout_width="0dp"
         android:layout_height="?attr/actionBarSize"
         android:background="?attr/colorPrimary"
-        android:elevation="4dp"
+        android:elevation="0dp"
         android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -20,177 +20,220 @@
         app:subtitleTextColor="@color/app_on_primary"
         app:titleTextColor="@color/app_on_primary" />
 
-    <TextView
-        android:id="@+id/speedLabel"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="@string/room_name_placeholder"
-        android:textColor="@color/app_on_surface"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/my_toolbar" />
-
-    <TextView
-        android:id="@+id/chartDateLabel"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:text="@string/room_chart_loading"
-        android:textColor="@color/app_on_surface"
-        android:textSize="14sp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/speedLabel" />
-
-    <com.github.mikephil.charting.charts.LineChart
-        android:id="@+id/historyChart"
-        android:layout_width="0dp"
-        android:layout_height="220dp"
-        android:layout_marginTop="8dp"
-        android:layout_marginStart="16dp"
-        android:layout_marginEnd="16dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/chartDateLabel" />
-
-
-    <TextView
-        android:id="@+id/statusText"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
-        android:text="45.2 dB: Quiet"
-        android:textColor="@color/app_on_surface"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/historyChart" />
-
-    <TextView
-        android:id="@+id/soundText"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="@string/room_sound_level_placeholder"
-        android:textColor="@color/app_on_surface"
-        android:textSize="14sp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/statusText" />
-
-    <!-- Title and Reset Button Row -->
-    <LinearLayout
-        android:id="@+id/titleResetContainer"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="14dp"
-        android:layout_marginStart="16dp"
-        android:layout_marginEnd="16dp"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/soundText">
-
-        <TextView
-            android:id="@+id/readingsTitle"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="@string/room_recent_readings"
-            android:textColor="@color/app_on_surface"
-            android:textSize="16sp"
-            android:textStyle="bold" />
-
-        <Button
-            android:id="@+id/btn_reset_sort"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Reset"
-            android:textSize="12sp"
-            android:padding="8dp"
-            android:background="?attr/colorPrimary"
-            android:textColor="@color/app_on_primary"
-            style="@style/Widget.AppCompat.Button.Colored" />
-
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/readingsHeader"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:layout_marginStart="16dp"
-        android:layout_marginEnd="16dp"
-        android:background="@color/app_surface"
-        android:orientation="horizontal"
-        android:padding="8dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/titleResetContainer">
-
-        <TextView
-            android:id="@+id/headerTime"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="2"
-            android:text="@string/room_table_time"
-            android:textColor="@color/app_on_surface"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            android:clickable="true"
-            android:focusable="true"
-            android:background="?attr/selectableItemBackground"
-            android:padding="4dp" />
-
-        <TextView
-            android:id="@+id/headerDb"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:text="@string/room_table_db"
-            android:textColor="@color/app_on_surface"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            android:clickable="true"
-            android:focusable="true"
-            android:background="?attr/selectableItemBackground"
-            android:padding="4dp" />
-
-        <TextView
-            android:id="@+id/headerStatus"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1.2"
-            android:gravity="end"
-            android:text="@string/room_table_status"
-            android:textColor="@color/app_on_surface"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            android:clickable="true"
-            android:focusable="true"
-            android:background="?attr/selectableItemBackground"
-            android:padding="4dp" />
-    </LinearLayout>
-
-    <ListView
-        android:id="@+id/readingsList"
+    <ScrollView
+        android:id="@+id/scrollView"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginTop="2dp"
-        android:layout_marginStart="16dp"
-        android:layout_marginEnd="16dp"
-        android:layout_marginBottom="12dp"
-        android:divider="@android:color/darker_gray"
-        android:dividerHeight="0.5dp"
+        android:fillViewport="true"
+        android:clipToPadding="false"
+        android:clipChildren="false"
+        android:paddingBottom="16dp"
+        app:layout_constraintTop_toBottomOf="@id/my_toolbar"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/readingsHeader" />
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:clipChildren="false">
+
+            <!-- Chart Title -->
+            <TextView
+                android:id="@+id/chartTitleLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:text="@string/room_sound_level_placeholder"
+                android:textColor="@color/app_on_background"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <!-- Chart Date Range -->
+            <TextView
+                android:id="@+id/chartDateLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:text="@string/room_chart_loading"
+                android:textColor="@color/app_on_surface"
+                android:textSize="13sp" />
+
+            <!-- Chart Container -->
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="240dp"
+                android:layout_marginTop="12dp"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:clipChildren="false"
+                android:clipToPadding="false">
+
+                <com.github.mikephil.charting.charts.LineChart
+                    android:id="@+id/historyChart"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent" />
+
+            </FrameLayout>
+
+            <!-- Status Card Container -->
+            <LinearLayout
+                android:id="@+id/statusCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:layout_marginBottom="0dp"
+                android:orientation="vertical"
+                android:background="@color/app_surface"
+                android:paddingHorizontal="16dp"
+                android:paddingVertical="16dp">
+
+                <!-- Status Label and Sound Level -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:id="@+id/statusText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Moderate"
+                        android:textColor="@color/app_on_background"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                </LinearLayout>
+
+                <!-- Location Text Details -->
+                <TextView
+                    android:id="@+id/locationText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="Location: --"
+                    android:textColor="@color/app_on_surface"
+                    android:textSize="13sp" />
+
+            </LinearLayout>
+
+            <!-- Divider -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:background="@color/app_surface" />
+
+            <!-- History Title -->
+            <TextView
+                android:id="@+id/readingsTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="8dp"
+                android:background="@color/white"
+                android:text="@string/room_recent_readings"
+                android:textColor="@color/app_on_background"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <!-- Table Header -->
+            <LinearLayout
+                android:id="@+id/readingsHeader"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:layout_marginBottom="0dp"
+                android:background="@color/white"
+                android:orientation="horizontal"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="6dp"
+                android:paddingBottom="8dp">
+
+                <TextView
+                    android:id="@+id/headerTime"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="2"
+                    android:text="@string/room_table_time"
+                    android:textColor="@color/app_on_surface"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?attr/selectableItemBackground"
+                    android:padding="2dp" />
+
+                <TextView
+                    android:id="@+id/headerDb"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:text="@string/room_table_db"
+                    android:textColor="@color/app_on_surface"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?attr/selectableItemBackground"
+                    android:padding="2dp" />
+
+                <TextView
+                    android:id="@+id/headerStatus"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1.2"
+                    android:gravity="end"
+                    android:text="@string/room_table_status"
+                    android:textColor="@color/app_on_surface"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?attr/selectableItemBackground"
+                    android:padding="2dp" />
+
+            </LinearLayout>
+
+            <!-- Header Divider -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:background="#E0E0E0" />
+
+            <!-- Table List -->
+            <ListView
+                android:id="@+id/readingsList"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:layout_marginBottom="16dp"
+                android:divider="@color/app_surface"
+                android:dividerHeight="0.5dp"
+                android:scrollbars="none" />
+
+        </LinearLayout>
+
+    </ScrollView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

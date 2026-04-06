@@ -54,7 +54,8 @@ public class ChartMarkerView extends MarkerView {
 
     @Override
     public MPPointF getOffset() {
-        // Centre the bubble horizontally above the tap point, with 10px gap
-        return new MPPointF(-(getWidth() / 2f), -getHeight() - 10f);
+        // Centre the bubble horizontally above the tap point, with 20px gap to allow
+        // display outside chart
+        return new MPPointF(-(getWidth() / 2f), -getHeight() - 20f);
     }
 }
