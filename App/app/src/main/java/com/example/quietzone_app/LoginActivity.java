@@ -17,11 +17,11 @@ import android.widget.Toast;
 import androidx.activity.EdgeToEdge;
 //import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.Toolbar;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.google.android.material.textfield.TextInputLayout;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException;
 import com.google.firebase.auth.FirebaseAuthUserCollisionException;
@@ -32,19 +32,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
-// Toolbar
-//import androidx.appcompat.widget.Toolbar;
-//import android.view.Menu;
-//import android.view.MenuItem;
-//import android.widget.Toast;
-//import android.content.Intent;
-
 public class LoginActivity extends AppCompatActivity {
 
     private EditText usernameInput, passwordInput;
-    private Button loginButton;
+    private Button loginButton, signUpButton;
     private EditText confirmPasswordInput;
-    private TextView newUserText, loginTitle;
+    private TextView loginTitle;
+    private TextInputLayout confirmPasswordLayout;
 
     private boolean isLoginMode = true;
     private FirebaseAuth mAuth;
@@ -66,19 +60,6 @@ public class LoginActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_login);
 
-        Toolbar myToolbar = findViewById(R.id.my_toolbar);
-        setSupportActionBar(myToolbar);
-        int toolbarTextColor = getResources().getColor(R.color.app_on_primary, getTheme());
-        myToolbar.setTitleTextColor(toolbarTextColor);
-        myToolbar.setSubtitleTextColor(toolbarTextColor);
-
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setTitle(getString(R.string.login_button));
-        }
-        if (myToolbar.getOverflowIcon() != null) {
-            myToolbar.getOverflowIcon().setTint(toolbarTextColor);
-        }
-
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
@@ -88,15 +69,15 @@ public class LoginActivity extends AppCompatActivity {
         usernameInput = findViewById(R.id.usernameInput);
         passwordInput = findViewById(R.id.passwordInput);
         loginButton = findViewById(R.id.loginButton);
+        signUpButton = findViewById(R.id.signUpButton);
 
         confirmPasswordInput = findViewById(R.id.confirmPassword);
-        newUserText = findViewById(R.id.Newuser);
-        loginTitle = findViewById(R.id.loginTitle); // <-- ONLY ADDITION
+        confirmPasswordLayout = findViewById(R.id.confirmPasswordLayout);
+        loginTitle = findViewById(R.id.loginTitle);
 
-        confirmPasswordInput.setVisibility(View.GONE);
+        confirmPasswordLayout.setVisibility(View.GONE);
 
-        newUserText.setOnClickListener(v -> toggleMode());
-
+        signUpButton.setOnClickListener(v -> toggleMode());
         loginButton.setOnClickListener(v -> handleAuth());
     }
 
@@ -122,17 +103,17 @@ public class LoginActivity extends AppCompatActivity {
         isLoginMode = !isLoginMode;
 
         if (isLoginMode) {
-            animateView(confirmPasswordInput, false);
+            animateView(confirmPasswordLayout, false);
 
             loginButton.setText("Login");
-            newUserText.setText("New User?");
+            signUpButton.setText("Sign Up");
             loginTitle.setText("Login");
         } else {
-            animateView(confirmPasswordInput, true);
+            animateView(confirmPasswordLayout, true);
 
             loginButton.setText("Setup");
-            newUserText.setText("Do you already have an account?");
-            loginTitle.setText("Setup");
+            signUpButton.setText("Already have an account?");
+            loginTitle.setText("Sign Up");
         }
     }
 

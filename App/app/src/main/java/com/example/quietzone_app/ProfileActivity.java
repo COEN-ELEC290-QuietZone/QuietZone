@@ -23,9 +23,12 @@ import java.util.List;
 
 public class ProfileActivity extends AppCompatActivity {
 
-    private TextView nameText, emailText, roomsText;
+    private TextView nameText, emailText, roomsText, nameCardText, emailCardText, savedRoomsCount;
     private DatabaseReference userFavoritesRef;
+    private DatabaseReference liveSensorsRef;
     private ValueEventListener favoritesListener;
+    private ValueEventListener liveSensorsListener;
+    private List<FavoriteItem> currentFavorites = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,6 +51,9 @@ public class ProfileActivity extends AppCompatActivity {
         nameText = findViewById(R.id.profileNameText);
         emailText = findViewById(R.id.profileEmailText);
         roomsText = findViewById(R.id.profileRoomsText);
+        nameCardText = findViewById(R.id.profileNameCardText);
+        emailCardText = findViewById(R.id.profileEmailText);
+        savedRoomsCount = findViewById(R.id.savedRoomsCount);
 
         setupBottomNavigation();
         loadUserData();
@@ -72,11 +78,16 @@ public class ProfileActivity extends AppCompatActivity {
     private void loadUserData() {
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         if (user != null) {
-            emailText.setText(user.getEmail());
-            // Display "Admin" if user is admin, otherwise show Firebase display name or default to "User"
-            String displayName = SessionState.isAdmin(this) ? "Admin" : 
-                                (user.getDisplayName() != null ? user.getDisplayName() : "User");
+            String userEmail = user.getEmail();
+            emailText.setText(userEmail);
+            emailCardText.setText(userEmail);
+
+            // Display "Admin" if user is admin, otherwise show Firebase display name or
+            // default to "User"
+            String displayName = SessionState.isAdmin(this) ? "Admin"
+                    : (user.getDisplayName() != null ? user.getDisplayName() : "User");
             nameText.setText(displayName);
+            nameCardText.setText(displayName);
 
             userFavoritesRef = FirebaseDatabase.getInstance().getReference("users")
                     .child(user.getUid()).child("favorites");
@@ -84,25 +95,26 @@ public class ProfileActivity extends AppCompatActivity {
             favoritesListener = new ValueEventListener() {
                 @Override
                 public void onDataChange(@NonNull DataSnapshot snapshot) {
+                    currentFavorites.clear();
                     if (snapshot.exists()) {
-                        List<FavoriteItem> favorites = new ArrayList<>();
                         for (DataSnapshot child : snapshot.getChildren()) {
                             String sensorKey = child.getKey();
                             Long timestamp = child.getValue(Long.class);
                             if (sensorKey != null && timestamp != null) {
-                                favorites.add(new FavoriteItem(sensorKey, timestamp));
+                                currentFavorites.add(new FavoriteItem(sensorKey, timestamp));
                             }
                         }
 
                         // Sort by timestamp (the order they were favorited)
-                        Collections.sort(favorites, (f1, f2) -> f1.timestamp.compareTo(f2.timestamp));
+                        Collections.sort(currentFavorites, (f1, f2) -> f1.timestamp.compareTo(f2.timestamp));
 
-                        StringBuilder sb = new StringBuilder();
-                        for (FavoriteItem fav : favorites) {
-                            sb.append("• ").append(toRoomName(fav.sensorKey)).append("\n");
-                        }
-                        roomsText.setText(sb.toString().trim());
+                        // Update saved rooms count
+                        savedRoomsCount.setText(String.valueOf(currentFavorites.size()));
+
+                        // Fetch location names from Firebase live sensors
+                        attachLiveSensorsListener();
                     } else {
+                        savedRoomsCount.setText("0");
                         roomsText.setText("No favorite rooms yet.");
                     }
                 }
@@ -116,8 +128,30 @@ public class ProfileActivity extends AppCompatActivity {
         }
     }
 
-    private String toRoomName(String sensorKey) {
-        return getString(R.string.room_name_format, sensorKey);
+    private void attachLiveSensorsListener() {
+        liveSensorsRef = FirebaseDatabase.getInstance().getReference("sound_data/live");
+        liveSensorsListener = new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                StringBuilder sb = new StringBuilder();
+                for (FavoriteItem fav : currentFavorites) {
+                    DataSnapshot sensorSnapshot = snapshot.child(fav.sensorKey);
+                    String location = sensorSnapshot.child("location").getValue(String.class);
+                    String roomName = (location != null && !location.trim().isEmpty()) ? location : "Unassigned";
+                    sb.append("• ").append(roomName).append("\n");
+                }
+                if (sb.length() > 0) {
+                    sb.setLength(sb.length() - 1); // Remove trailing newline
+                }
+                roomsText.setText(sb.toString());
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Log.e("ProfileActivity", "Error loading live sensors", error.toException());
+            }
+        };
+        liveSensorsRef.addValueEventListener(liveSensorsListener);
     }
 
     private static class FavoriteItem {
@@ -135,6 +169,9 @@ public class ProfileActivity extends AppCompatActivity {
         super.onDestroy();
         if (userFavoritesRef != null && favoritesListener != null) {
             userFavoritesRef.removeEventListener(favoritesListener);
+        }
+        if (liveSensorsRef != null && liveSensorsListener != null) {
+            liveSensorsRef.removeEventListener(liveSensorsListener);
         }
     }
 }
