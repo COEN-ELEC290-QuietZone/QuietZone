@@ -93,5 +93,5 @@ void SoundSensor::printDebugInfo()
     Serial.println("Sound Level: " + String(dBLevel, 1) + " dB");
     Serial.println("Status: " + status);
     Serial.println("DC Offset: " + String(dcOffset, 2));
-    Serial.println("===========================================");
+    Serial.println("=");
 }

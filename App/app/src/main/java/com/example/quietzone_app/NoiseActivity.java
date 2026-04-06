@@ -35,6 +35,10 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ServerValue;
 import com.google.firebase.database.ValueEventListener;
+import com.google.firebase.messaging.FirebaseMessaging;
+import androidx.appcompat.app.AlertDialog;
+import android.os.Handler;
+import android.os.SystemClock;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -46,6 +50,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.text.SimpleDateFormat;
 
 public class NoiseActivity extends AppCompatActivity {
 
@@ -138,6 +143,19 @@ public class NoiseActivity extends AppCompatActivity {
         };
         liveSensorsRef.addValueEventListener(liveSensorsListener);
         liveSensorsHandle = FirebaseListenerRegistry.register(liveSensorsRef, liveSensorsListener);
+
+        // Retrieve FCM Token here
+        FirebaseMessaging.getInstance().getToken()
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful()) {
+                        // Get the FCM registration token
+                        String token = task.getResult();
+                        Log.d("FCM Token", "Device token: " + token);  // Log the token
+                        // Optionally, save it to your backend or use it for push notifications
+                    } else {
+                        Log.e("FCM Token", "Fetching token failed", task.getException());
+                    }
+                });
     }
 
     private void setupFocusSession() {
@@ -186,12 +204,10 @@ public class NoiseActivity extends AppCompatActivity {
     private void startSession() {
         startFocusButton.setVisibility(View.GONE);
         sessionGroup.setVisibility(View.VISIBLE);
-
         sessionStartTimestamp = System.currentTimeMillis();
         startTime = SystemClock.uptimeMillis();
         timerHandler.postDelayed(updateTimerThread, 0);
         isTimerRunning = true;
-
         pauseResumeButton.setText("Pause");
         pauseResumeButton.setIconResource(android.R.drawable.ic_media_pause);
     }
@@ -200,7 +216,6 @@ public class NoiseActivity extends AppCompatActivity {
         timeSwapBuff += timeInMilliseconds;
         timerHandler.removeCallbacks(updateTimerThread);
         isTimerRunning = false;
-
         pauseResumeButton.setText("Resume");
         pauseResumeButton.setIconResource(android.R.drawable.ic_media_play);
     }
@@ -209,7 +224,6 @@ public class NoiseActivity extends AppCompatActivity {
         startTime = SystemClock.uptimeMillis();
         timerHandler.postDelayed(updateTimerThread, 0);
         isTimerRunning = true;
-
         pauseResumeButton.setText("Pause");
         pauseResumeButton.setIconResource(android.R.drawable.ic_media_pause);
     }
@@ -237,7 +251,6 @@ public class NoiseActivity extends AppCompatActivity {
         timeSwapBuff = 0L;
         updatedTime = 0L;
         isTimerRunning = false;
-
         timerText.setText("00:00:00");
         sessionGroup.setVisibility(View.GONE);
         startFocusButton.setVisibility(View.VISIBLE);
@@ -247,12 +260,10 @@ public class NoiseActivity extends AppCompatActivity {
         public void run() {
             timeInMilliseconds = SystemClock.uptimeMillis() - startTime;
             updatedTime = timeSwapBuff + timeInMilliseconds;
-
             int totalSecs = (int) (updatedTime / 1000);
             int hours = totalSecs / 3600;
             int mins = (totalSecs % 3600) / 60;
             int secs = totalSecs % 60;
-
             timerText.setText(String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, mins, secs));
             timerHandler.postDelayed(this, 0);
         }
@@ -605,7 +616,7 @@ public class NoiseActivity extends AppCompatActivity {
 
         @Override
         public View getChildView(int groupPosition, int childPosition, boolean isLastChild,
-                View convertView, ViewGroup parent) {
+                                 View convertView, ViewGroup parent) {
 
             RoomItem room = rooms.get(groupPosition);
 

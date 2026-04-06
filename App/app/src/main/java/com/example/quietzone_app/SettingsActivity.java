@@ -1,14 +1,27 @@
 package com.example.quietzone_app;
 
+import android.Manifest;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.view.View;
+import android.widget.Toast;
 import android.widget.TextView;
+
+import com.google.firebase.messaging.FirebaseMessaging;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -17,6 +30,8 @@ import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.switchmaterial.SwitchMaterial;
 
 public class SettingsActivity extends AppCompatActivity {
+
+    private static final int NOTIF_PERMISSION_REQUEST = 100;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -120,6 +135,19 @@ public class SettingsActivity extends AppCompatActivity {
                 });
             }
         }
+
+        // Notifications button
+        View notificationButton = findViewById(R.id.button3);
+        if (notificationButton != null) {
+            notificationButton.setOnClickListener(v -> {
+                if (isNotificationPermissionGranted()) {
+                    showDisablePermissionDialog();
+                    handleFcmToken();
+                } else {
+                    requestNotificationPermission();
+                }
+            });
+        }
     }
 
     @Override
@@ -149,6 +177,73 @@ public class SettingsActivity extends AppCompatActivity {
                 darkModeStatus.setText("Dark mode on");
             } else {
                 darkModeStatus.setText("Dark mode off");
+            }
+        }
+    }
+
+    private boolean isNotificationPermissionGranted() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            return ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                    == PackageManager.PERMISSION_GRANTED;
+        }
+        return true;
+    }
+
+    private void handleFcmToken() {
+        FirebaseMessaging.getInstance().getToken().addOnCompleteListener(task -> {
+            if (!task.isSuccessful()) return;
+            String token = task.getResult();
+
+            ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            ClipData clip = ClipData.newPlainText("FCM Token", token);
+            clipboard.setPrimaryClip(clip);
+
+            Toast.makeText(this, "FCM Token copied to clipboard!", Toast.LENGTH_SHORT).show();
+
+            new AlertDialog.Builder(this)
+                    .setTitle("FCM Token Copied")
+                    .setMessage(token)
+                    .setPositiveButton("OK", null)
+                    .show();
+        });
+    }
+
+    private void showDisablePermissionDialog() {
+        new AlertDialog.Builder(this)
+                .setTitle("Notifications Enabled")
+                .setMessage("To disable notifications, please go to System Settings. Would you like to go there now?")
+                .setPositiveButton("Go to Settings", (dialog, which) -> {
+                    Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                    Uri uri = Uri.fromParts("package", getPackageName(), null);
+                    intent.setData(uri);
+                    startActivity(intent);
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ActivityCompat.requestPermissions(
+                    this,
+                    new String[]{Manifest.permission.POST_NOTIFICATIONS},
+                    NOTIF_PERMISSION_REQUEST
+            );
+        } else {
+            Toast.makeText(this, "Notifications allowed by default on this version", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == NOTIF_PERMISSION_REQUEST) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(this, "Notifications enabled", Toast.LENGTH_SHORT).show();
+                handleFcmToken();
+                showDisablePermissionDialog();
+            } else {
+                Toast.makeText(this, "Notifications denied", Toast.LENGTH_SHORT).show();
             }
         }
     }

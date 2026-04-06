@@ -39,6 +39,7 @@ dependencies {
     implementation(libs.constraintlayout)
     // Room (SQLite) dependencies
     implementation("androidx.room:room-runtime:2.6.1")
+    implementation(libs.firebase.messaging)
     annotationProcessor("androidx.room:room-compiler:2.6.1")
     // For Kotlin use kapt instead of annotationProcessor
     testImplementation("androidx.room:room-testing:2.6.1")
@@ -47,6 +48,7 @@ dependencies {
     implementation(libs.firebase.database)
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
+    implementation(libs.firebase.messaging)
 
     // SpeedView library for gauge displays
     implementation("com.github.anastr:speedviewlib:1.6.1")
