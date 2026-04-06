@@ -11,10 +11,10 @@ void SerialDebugger::begin()
     btSerial.begin("SmartSoundHub");
 
     println("");
-    println("================================================");
+    println("======");
     println("  QuietZone Sound Sensor - v1.0");
     println("  Serial @ 115200 baud | BT: SmartSoundHub");
-    println("================================================");
+    println("======");
     println("");
 }
 

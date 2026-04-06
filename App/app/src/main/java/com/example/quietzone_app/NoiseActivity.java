@@ -30,13 +30,20 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ServerValue;
 import com.google.firebase.database.ValueEventListener;
+import com.google.firebase.messaging.FirebaseMessaging;
+import androidx.appcompat.app.AlertDialog;
+import android.os.Handler;
+import android.os.SystemClock;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.text.SimpleDateFormat;
 
 public class NoiseActivity extends AppCompatActivity {
 
@@ -51,6 +58,21 @@ public class NoiseActivity extends AppCompatActivity {
     private ValueEventListener liveSensorsListener;
     private ValueEventListener favoritesListener;
     private FirebaseListenerRegistry.ListenerHandle liveSensorsHandle;
+
+    // Focus session fields
+    private Button startFocusButton;
+    private android.widget.LinearLayout sessionGroup;
+    private TextView timerText;
+    private TextView streakCounterText;
+    private com.google.android.material.button.MaterialButton pauseResumeButton;
+    private com.google.android.material.button.MaterialButton stopButton;
+    private boolean isTimerRunning = false;
+    private long sessionStartTimestamp = 0L;
+    private long startTime = 0L;
+    private long timeInMilliseconds = 0L;
+    private long timeSwapBuff = 0L;
+    private long updatedTime = 0L;
+    private Handler timerHandler = new Handler();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -290,8 +312,8 @@ public class NoiseActivity extends AppCompatActivity {
             public void onComplete(com.google.firebase.database.DatabaseError databaseError, boolean b, com.google.firebase.database.DataSnapshot dataSnapshot) {
             }
         });
->>>>>>> Stashed changes
     }
+    
 
     private void setupNavigation() {
         BottomNavigationView bottomNav = findViewById(R.id.bottomNavigation);

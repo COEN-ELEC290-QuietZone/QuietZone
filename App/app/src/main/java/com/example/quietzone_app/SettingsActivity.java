@@ -10,17 +10,14 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-<<<<<<< Updated upstream
+
 import android.util.TypedValue;
 import android.view.View;
 import android.widget.GridLayout;
-=======
+
 import android.provider.Settings;
-import android.util.TypedValue;
-import android.view.View;
-import android.widget.GridLayout;
 import android.widget.Toast;
->>>>>>> Stashed changes
+
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
@@ -32,11 +29,11 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
-<<<<<<< Updated upstream
-=======
+
+
 import com.google.android.material.button.MaterialButton;
 import com.google.firebase.messaging.FirebaseMessaging;
->>>>>>> Stashed changes
+
 
 public class SettingsActivity extends AppCompatActivity {
 
@@ -110,29 +107,10 @@ public class SettingsActivity extends AppCompatActivity {
         }
 
         if (themeButton != null) {
-<<<<<<< Updated upstream
-            themeButton.setOnClickListener(v -> {
-                ThemeHelper.toggleTheme(this);
-            });
-=======
             themeButton.setOnClickListener(v -> ThemeHelper.toggleTheme(this));
->>>>>>> Stashed changes
-        }
-    }
-
-<<<<<<< Updated upstream
-    private void applyCalculatedGridTileSize() {
-        GridLayout settingsGrid = findViewById(R.id.settingsGrid);
-        if (settingsGrid == null) {
-            return;
         }
 
-        settingsGrid.post(() -> applySquareTileSize(settingsGrid));
-        settingsGrid.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
-            if (right - left != oldRight - oldLeft) {
-                applySquareTileSize(settingsGrid);
-            }
-=======
+        // Admin Dashboard Button
         View adminDashboardButton = findViewById(R.id.buttonAdminDashboard);
         if (adminDashboardButton != null) {
             if (!SessionState.isAdmin(this)) {
@@ -158,6 +136,16 @@ public class SettingsActivity extends AppCompatActivity {
             });
             updateNotificationButtonText();
         }
+    }
+
+    private void applyCalculatedGridTileSize() {
+        GridLayout settingsGrid = findViewById(R.id.settingsGrid);
+        if (settingsGrid == null) return;
+
+        settingsGrid.post(() -> applySquareTileSize(settingsGrid));
+        settingsGrid.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+            if (right - left != oldRight - oldLeft) applySquareTileSize(settingsGrid);
+        });
     }
 
     private boolean isNotificationPermissionGranted() {
@@ -231,33 +219,12 @@ public class SettingsActivity extends AppCompatActivity {
         notificationButton.setText(enabled ? "Notifications: Enabled" : "Notifications: Disabled");
     }
 
-    private void applyCalculatedGridTileSize() {
-        GridLayout settingsGrid = findViewById(R.id.settingsGrid);
-        if (settingsGrid == null) return;
-
-        settingsGrid.post(() -> applySquareTileSize(settingsGrid));
-        settingsGrid.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
-            if (right - left != oldRight - oldLeft) applySquareTileSize(settingsGrid);
->>>>>>> Stashed changes
-        });
-    }
-
     private void applySquareTileSize(GridLayout settingsGrid) {
-<<<<<<< Updated upstream
-        if (settingsGrid.getChildCount() == 0) {
-            return;
-        }
-
-        int availableWidth = settingsGrid.getWidth() - settingsGrid.getPaddingLeft() - settingsGrid.getPaddingRight();
-        if (availableWidth <= 0) {
-            return;
-        }
-=======
         if (settingsGrid.getChildCount() == 0) return;
 
         int availableWidth = settingsGrid.getWidth() - settingsGrid.getPaddingLeft() - settingsGrid.getPaddingRight();
         if (availableWidth <= 0) return;
->>>>>>> Stashed changes
+
 
         View sampleChild = settingsGrid.getChildAt(0);
         GridLayout.LayoutParams sampleLp = (GridLayout.LayoutParams) sampleChild.getLayoutParams();
@@ -269,10 +236,10 @@ public class SettingsActivity extends AppCompatActivity {
         settingsGrid.setColumnCount(columns);
 
         int tileSize = Math.max(1, (availableWidth - (columns * horizontalGap)) / columns);
-<<<<<<< Updated upstream
 
-=======
->>>>>>> Stashed changes
+
+
+
         for (int i = 0; i < settingsGrid.getChildCount(); i++) {
             View child = settingsGrid.getChildAt(i);
             GridLayout.LayoutParams lp = (GridLayout.LayoutParams) child.getLayoutParams();
@@ -287,15 +254,12 @@ public class SettingsActivity extends AppCompatActivity {
                 TypedValue.COMPLEX_UNIT_DIP,
                 dp,
                 getResources().getDisplayMetrics()));
-<<<<<<< Updated upstream
-=======
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         updateNotificationButtonText();
->>>>>>> Stashed changes
     }
 
     @Override
@@ -303,8 +267,4 @@ public class SettingsActivity extends AppCompatActivity {
         finish();
         return true;
     }
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
 }

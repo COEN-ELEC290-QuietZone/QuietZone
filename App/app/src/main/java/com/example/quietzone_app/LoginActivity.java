@@ -2,6 +2,7 @@ package com.example.quietzone_app;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.view.animation.AlphaAnimation;
 import android.widget.Button;
@@ -207,7 +208,7 @@ public class LoginActivity extends AppCompatActivity {
                         SessionState.setUserSession(this, uid, isAdmin);
                         Log.d("LoginActivity", "User logged in - UID: " + uid + ", IsAdmin: " + isAdmin);
 
-                        navigateToDashboard(isAdmin);
+                        navigateToDashboard();
                     } else {
                         // User document doesn't exist - create it with default role
                         Log.w("LoginActivity", "User document does not exist for UID: " + uid + ". Creating it now.");
@@ -234,7 +235,7 @@ public class LoginActivity extends AppCompatActivity {
                     Log.d("LoginActivity", "User document created for UID: " + uid);
                     // User document created, now proceed with login
                     SessionState.setUserSession(this, uid, false);
-                    navigateToDashboard(false);
+                    navigateToDashboard();
                 })
                 .addOnFailureListener(e -> {
                     Log.e("LoginActivity", "Failed to create user document for UID: " + uid, e);
@@ -243,7 +244,7 @@ public class LoginActivity extends AppCompatActivity {
                 });
     }
 
-    private void navigateToDashboard(boolean isAdmin) {
+    private void navigateToDashboard() {
         // Both admin and regular users navigate to NoiseActivity
         // Admin can access AdminDashboard from Settings menu
         Intent intent = new Intent(this, NoiseActivity.class);

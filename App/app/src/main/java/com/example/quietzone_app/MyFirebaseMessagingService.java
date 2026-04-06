@@ -45,19 +45,6 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
     private void showNotification(String title, String body) {
         NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 
-<<<<<<< Updated upstream
-        // Create the notification channel for Android 8.0+ (API 26) and above
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(
-                    CHANNEL_ID,
-                    "Default Channel",
-                    NotificationManager.IMPORTANCE_DEFAULT
-            );
-            notificationManager.createNotificationChannel(channel);
-        }
-
-        // Create a notification builder
-=======
         // Create the notification channel (only needed for Android 8.0+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
@@ -72,7 +59,6 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
         }
 
         // Create the notification builder
->>>>>>> Stashed changes
         Notification.Builder notificationBuilder;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             notificationBuilder = new Notification.Builder(this, CHANNEL_ID);
@@ -80,16 +66,6 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
             notificationBuilder = new Notification.Builder(this);
         }
 
-<<<<<<< Updated upstream
-        // Use your custom notification icon
-        notificationBuilder.setContentTitle(title)
-                .setContentText(body)
-                .setSmallIcon(R.drawable.ic_notifications)  // Custom icon placed in res/drawable
-                .setAutoCancel(true);  // Auto cancel the notification when tapped
-
-        // Show the notification
-        notificationManager.notify(0, notificationBuilder.build());
-=======
         // Ensure you have a valid icon in your drawable folder (replace with your icon)
         notificationBuilder.setContentTitle(title)
                 .setContentText(body)
@@ -101,6 +77,5 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
         if (notificationManager != null) {
             notificationManager.notify(0, notificationBuilder.build());
         }
->>>>>>> Stashed changes
     }
 }
