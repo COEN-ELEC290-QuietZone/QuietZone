@@ -143,9 +143,13 @@ public class AdminDashboardActivity extends AppCompatActivity {
                 Object lastSeenObj = child.child("lastSeen").getValue();
                 sensor.lastSeen = lastSeenObj != null ? lastSeenObj.toString() : "N/A";
 
-                // Get metadata from SharedPreferences
+                // Get sensor name from Firebase, fallback to formatted sensor key
+                String sensorName = child.child("name").getValue(String.class);
+                sensor.name = (sensorName != null && !sensorName.trim().isEmpty()) ? sensorName
+                        : "Sensor_" + sensorKey.trim();
+
+                // Get metadata from SharedPreferences (room info)
                 android.content.SharedPreferences prefs = getSharedPreferences("sensor_data", Context.MODE_PRIVATE);
-                sensor.name = prefs.getString(sensorKey.trim() + "_name", "Sensor_" + sensorKey.trim());
                 sensor.room = prefs.getString(sensorKey.trim() + "_room", "");
 
                 sensor.isConnected = "online".equalsIgnoreCase(firebaseStatus);
@@ -196,13 +200,21 @@ public class AdminDashboardActivity extends AppCompatActivity {
         cardContent.setOrientation(LinearLayout.VERTICAL);
         cardContent.setPadding(dpToPx(16), dpToPx(16), dpToPx(16), dpToPx(16));
 
-        // Sensor Name
+        // Sensor Name (Top - Large and Bold)
         TextView nameText = new TextView(this);
-        nameText.setText("Sensor: " + sensor.name);
+        nameText.setText(sensor.name);
         nameText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
         nameText.setTypeface(null, android.graphics.Typeface.BOLD);
         nameText.setTextColor(getResources().getColor(R.color.app_on_background, getTheme()));
         cardContent.addView(nameText);
+
+        // Sensor ID (Under Name - Smaller)
+        TextView idText = new TextView(this);
+        idText.setText("ID: " + sensor.id);
+        idText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        idText.setTextColor(getResources().getColor(android.R.color.darker_gray, getTheme()));
+        idText.setPadding(0, dpToPx(4), 0, 0);
+        cardContent.addView(idText);
 
         // Connection Status
         TextView statusText = new TextView(this);
@@ -213,14 +225,6 @@ public class AdminDashboardActivity extends AppCompatActivity {
                         : getResources().getColor(android.R.color.holo_red_dark, getTheme()));
         statusText.setPadding(0, dpToPx(8), 0, 0);
         cardContent.addView(statusText);
-
-        // Sensor ID
-        TextView idText = new TextView(this);
-        idText.setText("ID: " + sensor.id);
-        idText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-        idText.setTextColor(getResources().getColor(android.R.color.darker_gray, getTheme()));
-        idText.setPadding(0, dpToPx(8), 0, 0);
-        cardContent.addView(idText);
 
         // Room
         TextView roomText = new TextView(this);

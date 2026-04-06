@@ -2,9 +2,9 @@
 const char *MQTTClientManager::ssid = "Your_SSID";
 const char *MQTTClientManager::password = "Your_PASSWORD";
 const char *MQTTClientManager::mqtt_server = "IP_ADDRESS";
-const char *MQTTClientManager::sensorId = "12345abcde";
-const char *MQTTClientManager::sensorName = "Sensor 1 ESP8266";
-const char *MQTTClientManager::location = "Study Room 8266";
+const char *MQTTClientManager::sensorId = "67890fghij";
+const char *MQTTClientManager::sensorName = "Sensor 2 ESP8266";
+const char *MQTTClientManager::location = "Study Room 0";
 MQTTClientManager::MQTTClientManager() : mqttClient(espClient), lastPublish(0)
 {
 }
@@ -75,15 +75,18 @@ void MQTTClientManager::maintainConnection()
 
 bool MQTTClientManager::publishSoundData(float dbLevel)
 {
-    String payload = "{\"sensor_name\":\"" + String(sensorName) + "\",\"sensor_id\":\"" + String(sensorId) +
-                     "\",\"db_level\":" + String(dbLevel, 1) +
+    String topic = "sensors/" + String(sensorId) + "/sound_data";
+
+    String payload = "{\"sensor_name\":\"" + String(sensorName) + "\""
+                     ",\"sensor_id\":\"" + String(sensorId) + "\""
+                     ",\"db_level\":" + String(dbLevel, 1) +
                      ",\"location\":\"" + String(location) + "\"}";
 
-    bool published = mqttClient.publish("sensors/esp8266/sound_data", payload.c_str());
+    bool published = mqttClient.publish(topic.c_str(), payload.c_str());
 
     if (published)
     {
-        Serial.println("[INFO] MQTT publish OK: " + String(sensorName) + ", " + String(dbLevel, 1) + " dB");
+        Serial.println("[INFO] MQTT publish OK: " + String(sensorName) + " (" + String(sensorId) + "), " + String(dbLevel, 1) + " dB");
     }
     else
     {

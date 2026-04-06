@@ -163,7 +163,8 @@ public class NoiseActivity extends AppCompatActivity {
         // Listen for streak updates
         String uid = FirebaseAuth.getInstance().getUid();
         if (uid != null) {
-            DatabaseReference statsRef = FirebaseDatabase.getInstance().getReference("users").child(uid).child("focus_stats");
+            DatabaseReference statsRef = FirebaseDatabase.getInstance().getReference("users").child(uid)
+                    .child("focus_stats");
             statsRef.addValueEventListener(new ValueEventListener() {
                 @Override
                 public void onDataChange(@NonNull DataSnapshot snapshot) {
@@ -185,12 +186,12 @@ public class NoiseActivity extends AppCompatActivity {
     private void startSession() {
         startFocusButton.setVisibility(View.GONE);
         sessionGroup.setVisibility(View.VISIBLE);
-        
+
         sessionStartTimestamp = System.currentTimeMillis();
         startTime = SystemClock.uptimeMillis();
         timerHandler.postDelayed(updateTimerThread, 0);
         isTimerRunning = true;
-        
+
         pauseResumeButton.setText("Pause");
         pauseResumeButton.setIconResource(android.R.drawable.ic_media_pause);
     }
@@ -199,7 +200,7 @@ public class NoiseActivity extends AppCompatActivity {
         timeSwapBuff += timeInMilliseconds;
         timerHandler.removeCallbacks(updateTimerThread);
         isTimerRunning = false;
-        
+
         pauseResumeButton.setText("Resume");
         pauseResumeButton.setIconResource(android.R.drawable.ic_media_play);
     }
@@ -208,7 +209,7 @@ public class NoiseActivity extends AppCompatActivity {
         startTime = SystemClock.uptimeMillis();
         timerHandler.postDelayed(updateTimerThread, 0);
         isTimerRunning = true;
-        
+
         pauseResumeButton.setText("Pause");
         pauseResumeButton.setIconResource(android.R.drawable.ic_media_pause);
     }
@@ -217,9 +218,9 @@ public class NoiseActivity extends AppCompatActivity {
         if (isTimerRunning) {
             pauseSession();
         }
-        
+
         long durationSec = (timeSwapBuff + timeInMilliseconds) / 1000;
-        
+
         if (durationSec < 5) {
             Toast.makeText(this, "Session too short to save!", Toast.LENGTH_SHORT).show();
             resetFocusUi();
@@ -236,7 +237,7 @@ public class NoiseActivity extends AppCompatActivity {
         timeSwapBuff = 0L;
         updatedTime = 0L;
         isTimerRunning = false;
-        
+
         timerText.setText("00:00:00");
         sessionGroup.setVisibility(View.GONE);
         startFocusButton.setVisibility(View.VISIBLE);
@@ -246,12 +247,12 @@ public class NoiseActivity extends AppCompatActivity {
         public void run() {
             timeInMilliseconds = SystemClock.uptimeMillis() - startTime;
             updatedTime = timeSwapBuff + timeInMilliseconds;
-            
+
             int totalSecs = (int) (updatedTime / 1000);
             int hours = totalSecs / 3600;
             int mins = (totalSecs % 3600) / 60;
             int secs = totalSecs % 60;
-            
+
             timerText.setText(String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, mins, secs));
             timerHandler.postDelayed(this, 0);
         }
@@ -259,9 +260,11 @@ public class NoiseActivity extends AppCompatActivity {
 
     private void saveSessionToFirebase(long durationSec) {
         String uid = FirebaseAuth.getInstance().getUid();
-        if (uid == null) return;
+        if (uid == null)
+            return;
 
-        DatabaseReference historyRef = FirebaseDatabase.getInstance().getReference("users").child(uid).child("focus_history");
+        DatabaseReference historyRef = FirebaseDatabase.getInstance().getReference("users").child(uid)
+                .child("focus_history");
         String date = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
 
         Map<String, Object> sessionData = new HashMap<>();
@@ -285,11 +288,13 @@ public class NoiseActivity extends AppCompatActivity {
     }
 
     private void updateStreakByOne(String uid) {
-        DatabaseReference statsRef = FirebaseDatabase.getInstance().getReference("users").child(uid).child("focus_stats");
+        DatabaseReference statsRef = FirebaseDatabase.getInstance().getReference("users").child(uid)
+                .child("focus_stats");
         statsRef.child("currentStreak").runTransaction(new com.google.firebase.database.Transaction.Handler() {
             @NonNull
             @Override
-            public com.google.firebase.database.Transaction.Result doTransaction(@NonNull com.google.firebase.database.MutableData mutableData) {
+            public com.google.firebase.database.Transaction.Result doTransaction(
+                    @NonNull com.google.firebase.database.MutableData mutableData) {
                 Integer current = mutableData.getValue(Integer.class);
                 if (current == null) {
                     mutableData.setValue(1);
@@ -300,7 +305,8 @@ public class NoiseActivity extends AppCompatActivity {
             }
 
             @Override
-            public void onComplete(com.google.firebase.database.DatabaseError databaseError, boolean b, com.google.firebase.database.DataSnapshot dataSnapshot) {
+            public void onComplete(com.google.firebase.database.DatabaseError databaseError, boolean b,
+                    com.google.firebase.database.DataSnapshot dataSnapshot) {
             }
         });
     }
@@ -376,9 +382,17 @@ public class NoiseActivity extends AppCompatActivity {
             if (!roomBySensorKey.containsKey(sensorKey)) {
                 RoomItem room = new RoomItem();
                 room.sensorKey = sensorKey;
-                room.roomName = toRoomName(sensorKey);
+
+                // Extract sensor name from Firebase metadata
+                DataSnapshot sensorSnapshot = liveSnapshot.child(sensorKey);
+                String sensorName = sensorSnapshot.child("name").getValue(String.class);
+                if (sensorName == null || sensorName.trim().isEmpty()) {
+                    sensorName = toRoomName(sensorKey);
+                }
+                room.roomName = sensorName;
+
                 room.latestSoundLevel = Float.NaN;
-                Log.d("NoiseActivity", "Creating new room for sensor: " + sensorKey);
+                Log.d("NoiseActivity", "Creating new room for sensor: " + sensorKey + " name: " + sensorName);
                 roomBySensorKey.put(sensorKey, room);
                 attachSensorListener(room);
             } else {
