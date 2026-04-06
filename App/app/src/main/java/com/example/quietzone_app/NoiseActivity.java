@@ -394,16 +394,13 @@ public class NoiseActivity extends AppCompatActivity {
                 RoomItem room = new RoomItem();
                 room.sensorKey = sensorKey;
 
-                // Extract sensor name from Firebase metadata
+                // Extract location from Firebase metadata - if not assigned, show "Unassigned"
                 DataSnapshot sensorSnapshot = liveSnapshot.child(sensorKey);
-                String sensorName = sensorSnapshot.child("name").getValue(String.class);
-                if (sensorName == null || sensorName.trim().isEmpty()) {
-                    sensorName = toRoomName(sensorKey);
-                }
-                room.roomName = sensorName;
+                String location = sensorSnapshot.child("location").getValue(String.class);
+                room.roomName = (location != null && !location.trim().isEmpty()) ? location : "Unassigned";
 
                 room.latestSoundLevel = Float.NaN;
-                Log.d("NoiseActivity", "Creating new room for sensor: " + sensorKey + " name: " + sensorName);
+                Log.d("NoiseActivity", "Creating new room for sensor: " + sensorKey + " location: " + room.roomName);
                 roomBySensorKey.put(sensorKey, room);
                 attachSensorListener(room);
             } else {

@@ -73,7 +73,10 @@ public class ProfileActivity extends AppCompatActivity {
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         if (user != null) {
             emailText.setText(user.getEmail());
-            nameText.setText(user.getDisplayName() != null ? user.getDisplayName() : "User");
+            // Display "Admin" if user is admin, otherwise show Firebase display name or default to "User"
+            String displayName = SessionState.isAdmin(this) ? "Admin" : 
+                                (user.getDisplayName() != null ? user.getDisplayName() : "User");
+            nameText.setText(displayName);
 
             userFavoritesRef = FirebaseDatabase.getInstance().getReference("users")
                     .child(user.getUid()).child("favorites");
