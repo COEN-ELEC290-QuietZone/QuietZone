@@ -2,11 +2,11 @@ package com.example.quietzone_app;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.util.TypedValue;
 import android.view.View;
-import android.widget.GridLayout;
+import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.graphics.Insets;
@@ -14,6 +14,7 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.android.material.switchmaterial.SwitchMaterial;
 
 public class SettingsActivity extends AppCompatActivity {
 
@@ -62,30 +63,47 @@ public class SettingsActivity extends AppCompatActivity {
             return insets;
         });
 
-        applyCalculatedGridTileSize();
-
-        View deviceSetupButton = findViewById(R.id.buttonDeviceSetup);
-        View logoutButton = findViewById(R.id.button10);
-        View themeButton = findViewById(R.id.button2);
-
-        if (deviceSetupButton != null && !SessionState.isAdmin(this)) {
-            deviceSetupButton.setVisibility(View.GONE);
+        // Update profile name based on user type
+        TextView profileName = findViewById(R.id.profileName);
+        if (profileName != null) {
+            if (SessionState.isAdmin(this)) {
+                profileName.setText("Admin Settings");
+            } else {
+                profileName.setText("Student Settings");
+            }
         }
 
-        if (deviceSetupButton != null) {
-            deviceSetupButton.setOnClickListener(v -> {
-                Intent intent = new Intent(SettingsActivity.this, DeviceSetupActivity.class);
-                startActivity(intent);
-            });
+        View logoutButton = findViewById(R.id.button10);
+        View themeButton = findViewById(R.id.button2);
+        SwitchMaterial darkModeToggle = findViewById(R.id.darkModeToggle);
+        TextView darkModeStatus = findViewById(R.id.darkModeStatus);
+
+        // Update dark mode status on load
+        updateDarkModeStatus(darkModeStatus);
+
+        // Set initial switch state
+        if (darkModeToggle != null) {
+            darkModeToggle.setChecked(ThemeHelper.isDarkMode(this));
         }
 
         if (logoutButton != null) {
-            logoutButton.setOnClickListener(v -> LogoutManager.performLogout(SettingsActivity.this));
+            logoutButton.setOnClickListener(v -> showLogoutConfirmationDialog());
+        }
+
+        if (darkModeToggle != null) {
+            darkModeToggle.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                if (isChecked != ThemeHelper.isDarkMode(this)) {
+                    ThemeHelper.toggleTheme(this);
+                    updateDarkModeStatus(darkModeStatus);
+                }
+            });
         }
 
         if (themeButton != null) {
             themeButton.setOnClickListener(v -> {
-                ThemeHelper.toggleTheme(this);
+                if (darkModeToggle != null) {
+                    darkModeToggle.setChecked(!darkModeToggle.isChecked());
+                }
             });
         }
 
@@ -104,61 +122,35 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 
-    private void applyCalculatedGridTileSize() {
-        GridLayout settingsGrid = findViewById(R.id.settingsGrid);
-        if (settingsGrid == null) {
-            return;
-        }
-
-        settingsGrid.post(() -> applySquareTileSize(settingsGrid));
-        settingsGrid.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
-            if (right - left != oldRight - oldLeft) {
-                applySquareTileSize(settingsGrid);
-            }
-        });
-    }
-
-    private void applySquareTileSize(GridLayout settingsGrid) {
-        if (settingsGrid.getChildCount() == 0) {
-            return;
-        }
-
-        int availableWidth = settingsGrid.getWidth() - settingsGrid.getPaddingLeft() - settingsGrid.getPaddingRight();
-        if (availableWidth <= 0) {
-            return;
-        }
-
-        View sampleChild = settingsGrid.getChildAt(0);
-        GridLayout.LayoutParams sampleLp = (GridLayout.LayoutParams) sampleChild.getLayoutParams();
-        int horizontalGap = sampleLp.leftMargin + sampleLp.rightMargin;
-        int minTileSize = dpToPx(96);
-        int minCellSize = minTileSize + horizontalGap;
-
-        int columns = Math.max(1, availableWidth / Math.max(1, minCellSize));
-        settingsGrid.setColumnCount(columns);
-
-        int tileSize = Math.max(1, (availableWidth - (columns * horizontalGap)) / columns);
-
-        for (int i = 0; i < settingsGrid.getChildCount(); i++) {
-            View child = settingsGrid.getChildAt(i);
-            GridLayout.LayoutParams lp = (GridLayout.LayoutParams) child.getLayoutParams();
-            lp.width = tileSize;
-            lp.height = tileSize;
-            child.setLayoutParams(lp);
-        }
-    }
-
-    private int dpToPx(int dp) {
-        return Math.round(TypedValue.applyDimension(
-                TypedValue.COMPLEX_UNIT_DIP,
-                dp,
-                getResources().getDisplayMetrics()));
-    }
-
     @Override
     public boolean onSupportNavigateUp() {
         finish();
         return true;
+    }
+
+    private void showLogoutConfirmationDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Log Out")
+                .setMessage("Are you sure you want to log out?")
+                .setPositiveButton("Log Out", (dialog, which) -> {
+                    LogoutManager.performLogout(SettingsActivity.this);
+                })
+                .setNegativeButton("Stay Logged In", (dialog, which) -> {
+                    dialog.dismiss();
+                })
+                .setCancelable(true)
+                .show();
+    }
+
+    private void updateDarkModeStatus(TextView darkModeStatus) {
+        if (darkModeStatus != null) {
+            boolean isDarkMode = ThemeHelper.isDarkMode(this);
+            if (isDarkMode) {
+                darkModeStatus.setText("Dark mode on");
+            } else {
+                darkModeStatus.setText("Dark mode off");
+            }
+        }
     }
 
 }
