@@ -30,9 +30,6 @@
             android:name=".MainActivity"
             android:exported="false" />
         <activity
-            android:name=".MainActivity"
-            android:exported="false" />
-        <activity
             android:name=".DeviceSetupActivity"
             android:exported="false" />
         <activity
@@ -54,6 +51,9 @@
             android:exported="false" />
         <activity
             android:name=".RoomActivity"
+            android:exported="false" />
+        <activity
+            android:name=".AdminDashboardActivity"
             android:exported="false" />
         <service
             android:name=".MyFirebaseMessagingService"

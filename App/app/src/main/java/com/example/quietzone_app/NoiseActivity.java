@@ -127,6 +127,172 @@ public class NoiseActivity extends AppCompatActivity {
                 });
     }
 
+    private void setupFocusSession() {
+        startFocusButton = findViewById(R.id.startFocusButton);
+        sessionGroup = findViewById(R.id.sessionGroup);
+        timerText = findViewById(R.id.timerText);
+        streakCounterText = findViewById(R.id.streakCounterText);
+        pauseResumeButton = findViewById(R.id.pauseResumeButton);
+        stopButton = findViewById(R.id.stopButton);
+
+        startFocusButton.setOnClickListener(v -> startSession());
+
+        pauseResumeButton.setOnClickListener(v -> {
+            if (isTimerRunning) {
+                pauseSession();
+            } else {
+                resumeSession();
+            }
+        });
+
+        stopButton.setOnClickListener(v -> stopSession());
+
+        // Listen for streak updates
+        String uid = FirebaseAuth.getInstance().getUid();
+        if (uid != null) {
+            DatabaseReference statsRef = FirebaseDatabase.getInstance().getReference("users").child(uid).child("focus_stats");
+            statsRef.addValueEventListener(new ValueEventListener() {
+                @Override
+                public void onDataChange(@NonNull DataSnapshot snapshot) {
+                    if (snapshot.exists()) {
+                        Integer streak = snapshot.child("currentStreak").getValue(Integer.class);
+                        if (streak != null) {
+                            streakCounterText.setText("🔥 " + streak);
+                        }
+                    }
+                }
+
+                @Override
+                public void onCancelled(@NonNull DatabaseError error) {
+                }
+            });
+        }
+    }
+
+    private void startSession() {
+        startFocusButton.setVisibility(View.GONE);
+        sessionGroup.setVisibility(View.VISIBLE);
+        
+        sessionStartTimestamp = System.currentTimeMillis();
+        startTime = SystemClock.uptimeMillis();
+        timerHandler.postDelayed(updateTimerThread, 0);
+        isTimerRunning = true;
+        
+        pauseResumeButton.setText("Pause");
+        pauseResumeButton.setIconResource(android.R.drawable.ic_media_pause);
+    }
+
+    private void pauseSession() {
+        timeSwapBuff += timeInMilliseconds;
+        timerHandler.removeCallbacks(updateTimerThread);
+        isTimerRunning = false;
+        
+        pauseResumeButton.setText("Resume");
+        pauseResumeButton.setIconResource(android.R.drawable.ic_media_play);
+    }
+
+    private void resumeSession() {
+        startTime = SystemClock.uptimeMillis();
+        timerHandler.postDelayed(updateTimerThread, 0);
+        isTimerRunning = true;
+        
+        pauseResumeButton.setText("Pause");
+        pauseResumeButton.setIconResource(android.R.drawable.ic_media_pause);
+    }
+
+    private void stopSession() {
+        if (isTimerRunning) {
+            pauseSession();
+        }
+        
+        long durationSec = (timeSwapBuff + timeInMilliseconds) / 1000;
+        
+        if (durationSec < 5) {
+            Toast.makeText(this, "Session too short to save!", Toast.LENGTH_SHORT).show();
+            resetFocusUi();
+            return;
+        }
+
+        saveSessionToFirebase(durationSec);
+    }
+
+    private void resetFocusUi() {
+        timerHandler.removeCallbacks(updateTimerThread);
+        startTime = 0L;
+        timeInMilliseconds = 0L;
+        timeSwapBuff = 0L;
+        updatedTime = 0L;
+        isTimerRunning = false;
+        
+        timerText.setText("00:00:00");
+        sessionGroup.setVisibility(View.GONE);
+        startFocusButton.setVisibility(View.VISIBLE);
+    }
+
+    private Runnable updateTimerThread = new Runnable() {
+        public void run() {
+            timeInMilliseconds = SystemClock.uptimeMillis() - startTime;
+            updatedTime = timeSwapBuff + timeInMilliseconds;
+            
+            int totalSecs = (int) (updatedTime / 1000);
+            int hours = totalSecs / 3600;
+            int mins = (totalSecs % 3600) / 60;
+            int secs = totalSecs % 60;
+            
+            timerText.setText(String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, mins, secs));
+            timerHandler.postDelayed(this, 0);
+        }
+    };
+
+    private void saveSessionToFirebase(long durationSec) {
+        String uid = FirebaseAuth.getInstance().getUid();
+        if (uid == null) return;
+
+        DatabaseReference historyRef = FirebaseDatabase.getInstance().getReference("users").child(uid).child("focus_history");
+        String date = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+
+        Map<String, Object> sessionData = new HashMap<>();
+        sessionData.put("startTime", sessionStartTimestamp);
+        sessionData.put("endTime", System.currentTimeMillis());
+        sessionData.put("duration", durationSec);
+        sessionData.put("date", date);
+
+        historyRef.push().setValue(sessionData).addOnSuccessListener(aVoid -> {
+            updateStreakByOne(uid);
+            new AlertDialog.Builder(NoiseActivity.this)
+                    .setTitle("Focus Session Ended")
+                    .setMessage("Great job! You focused for " + (durationSec / 60) + "m " + (durationSec % 60) + "s.")
+                    .setPositiveButton("Awesome", (dialog, which) -> resetFocusUi())
+                    .setCancelable(false)
+                    .show();
+        }).addOnFailureListener(e -> {
+            Toast.makeText(NoiseActivity.this, "Failed to save session", Toast.LENGTH_SHORT).show();
+            resetFocusUi();
+        });
+    }
+
+    private void updateStreakByOne(String uid) {
+        DatabaseReference statsRef = FirebaseDatabase.getInstance().getReference("users").child(uid).child("focus_stats");
+        statsRef.child("currentStreak").runTransaction(new com.google.firebase.database.Transaction.Handler() {
+            @NonNull
+            @Override
+            public com.google.firebase.database.Transaction.Result doTransaction(@NonNull com.google.firebase.database.MutableData mutableData) {
+                Integer current = mutableData.getValue(Integer.class);
+                if (current == null) {
+                    mutableData.setValue(1);
+                } else {
+                    mutableData.setValue(current + 1);
+                }
+                return com.google.firebase.database.Transaction.success(mutableData);
+            }
+
+            @Override
+            public void onComplete(com.google.firebase.database.DatabaseError databaseError, boolean b, com.google.firebase.database.DataSnapshot dataSnapshot) {
+            }
+        });
+>>>>>>> Stashed changes
+    }
+
     private void setupNavigation() {
         BottomNavigationView bottomNav = findViewById(R.id.bottomNavigation);
         bottomNav.setSelectedItemId(R.id.nav_home);

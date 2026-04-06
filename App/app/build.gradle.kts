@@ -48,6 +48,7 @@ dependencies {
     implementation(libs.firebase.database)
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
+    implementation(libs.firebase.messaging)
 
     // SpeedView library for gauge displays
     implementation("com.github.anastr:speedviewlib:1.6.1")
