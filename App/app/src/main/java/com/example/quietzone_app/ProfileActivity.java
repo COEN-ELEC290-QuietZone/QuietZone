@@ -23,7 +23,7 @@ import java.util.List;
 
 public class ProfileActivity extends AppCompatActivity {
 
-    private TextView nameText, emailText, roomsText;
+    private TextView nameText, emailText, roomsText, nameCardText, emailCardText, savedRoomsCount;
     private DatabaseReference userFavoritesRef;
     private ValueEventListener favoritesListener;
 
@@ -48,6 +48,9 @@ public class ProfileActivity extends AppCompatActivity {
         nameText = findViewById(R.id.profileNameText);
         emailText = findViewById(R.id.profileEmailText);
         roomsText = findViewById(R.id.profileRoomsText);
+        nameCardText = findViewById(R.id.profileNameCardText);
+        emailCardText = findViewById(R.id.profileEmailText);
+        savedRoomsCount = findViewById(R.id.savedRoomsCount);
 
         setupBottomNavigation();
         loadUserData();
@@ -72,11 +75,15 @@ public class ProfileActivity extends AppCompatActivity {
     private void loadUserData() {
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         if (user != null) {
-            emailText.setText(user.getEmail());
+            String userEmail = user.getEmail();
+            emailText.setText(userEmail);
+            emailCardText.setText(userEmail);
+            
             // Display "Admin" if user is admin, otherwise show Firebase display name or default to "User"
             String displayName = SessionState.isAdmin(this) ? "Admin" : 
                                 (user.getDisplayName() != null ? user.getDisplayName() : "User");
             nameText.setText(displayName);
+            nameCardText.setText(displayName);
 
             userFavoritesRef = FirebaseDatabase.getInstance().getReference("users")
                     .child(user.getUid()).child("favorites");
@@ -97,12 +104,16 @@ public class ProfileActivity extends AppCompatActivity {
                         // Sort by timestamp (the order they were favorited)
                         Collections.sort(favorites, (f1, f2) -> f1.timestamp.compareTo(f2.timestamp));
 
+                        // Update saved rooms count
+                        savedRoomsCount.setText(String.valueOf(favorites.size()));
+
                         StringBuilder sb = new StringBuilder();
                         for (FavoriteItem fav : favorites) {
                             sb.append("• ").append(toRoomName(fav.sensorKey)).append("\n");
                         }
                         roomsText.setText(sb.toString().trim());
                     } else {
+                        savedRoomsCount.setText("0");
                         roomsText.setText("No favorite rooms yet.");
                     }
                 }
