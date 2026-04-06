@@ -55,10 +55,11 @@ public class LoginActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 
         mAuth = FirebaseAuth.getInstance();
+        db = FirebaseFirestore.getInstance();
 
         // If already logged in, skip to dashboard
         if (mAuth.getCurrentUser() != null) {
-            navigateToDashboard();
+            fetchUserRoleAndNavigate(mAuth.getCurrentUser().getUid());
             return;
         }
 
@@ -83,8 +84,6 @@ public class LoginActivity extends AppCompatActivity {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
-
-        db = FirebaseFirestore.getInstance();
 
         usernameInput = findViewById(R.id.usernameInput);
         passwordInput = findViewById(R.id.passwordInput);
@@ -155,7 +154,7 @@ public class LoginActivity extends AppCompatActivity {
 
             // Try login first
             mAuth.signInWithEmailAndPassword(email, password)
-                    .addOnSuccessListener(authResult -> navigateToDashboard())
+                    .addOnSuccessListener(authResult -> fetchUserRoleAndNavigate(authResult.getUser().getUid()))
                     .addOnFailureListener(e -> handleAuthError(e));
 
         } else {
@@ -184,11 +183,15 @@ public class LoginActivity extends AppCompatActivity {
         Map<String, Object> userDoc = new HashMap<>();
         userDoc.put("favourites", new ArrayList<>());
         userDoc.put("notification_settings", new HashMap<>());
-        userDoc.put("role", "user");
+        
+        // Determine if user is admin based on email
+        String email = mAuth.getCurrentUser() != null ? mAuth.getCurrentUser().getEmail() : "";
+        boolean isAdmin = "Admin@test.com".equalsIgnoreCase(email);
+        userDoc.put("role", isAdmin ? "admin" : "user");
 
         db.collection("users").document(uid)
                 .set(userDoc)
-                .addOnSuccessListener(unused -> navigateToDashboard())
+                .addOnSuccessListener(unused -> fetchUserRoleAndNavigate(uid))
                 .addOnFailureListener(e -> {
                     Toast.makeText(this,
                             "Account created but failed to save user data. Please try again.",
@@ -208,7 +211,7 @@ public class LoginActivity extends AppCompatActivity {
                         SessionState.setUserSession(this, uid, isAdmin);
                         Log.d("LoginActivity", "User logged in - UID: " + uid + ", IsAdmin: " + isAdmin);
 
-                        navigateToDashboard();
+                        navigateToDashboard(isAdmin);
                     } else {
                         // User document doesn't exist - create it with default role
                         Log.w("LoginActivity", "User document does not exist for UID: " + uid + ". Creating it now.");
@@ -227,15 +230,19 @@ public class LoginActivity extends AppCompatActivity {
         Map<String, Object> userDoc = new HashMap<>();
         userDoc.put("favourites", new ArrayList<>());
         userDoc.put("notification_settings", new HashMap<>());
-        userDoc.put("role", "user");
+        
+        // Determine if user is admin based on email
+        String email = mAuth.getCurrentUser() != null ? mAuth.getCurrentUser().getEmail() : "";
+        boolean isAdmin = "Admin@test.com".equalsIgnoreCase(email);
+        userDoc.put("role", isAdmin ? "admin" : "user");
 
         db.collection("users").document(uid)
                 .set(userDoc)
                 .addOnSuccessListener(unused -> {
                     Log.d("LoginActivity", "User document created for UID: " + uid);
                     // User document created, now proceed with login
-                    SessionState.setUserSession(this, uid, false);
-                    navigateToDashboard();
+                    SessionState.setUserSession(this, uid, isAdmin);
+                    navigateToDashboard(isAdmin);
                 })
                 .addOnFailureListener(e -> {
                     Log.e("LoginActivity", "Failed to create user document for UID: " + uid, e);
@@ -244,10 +251,12 @@ public class LoginActivity extends AppCompatActivity {
                 });
     }
 
-    private void navigateToDashboard() {
+    private void navigateToDashboard(boolean isAdmin) {
         // Both admin and regular users navigate to NoiseActivity
         // Admin can access AdminDashboard from Settings menu
         Intent intent = new Intent(this, NoiseActivity.class);
+        Log.d("LoginActivity", "Navigating to NoiseActivity (IsAdmin: " + isAdmin + ")");
+
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();

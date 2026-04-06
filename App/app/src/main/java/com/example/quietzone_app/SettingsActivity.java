@@ -1,7 +1,6 @@
 package com.example.quietzone_app;
 
 import android.Manifest;
-import android.app.AlertDialog;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
@@ -10,16 +9,15 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-
-import android.util.TypedValue;
-import android.view.View;
-import android.widget.GridLayout;
-
 import android.provider.Settings;
+import android.view.View;
 import android.widget.Toast;
+import android.widget.TextView;
 
+import com.google.firebase.messaging.FirebaseMessaging;
 
 import androidx.activity.EdgeToEdge;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
@@ -29,16 +27,11 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
-
-
-import com.google.android.material.button.MaterialButton;
-import com.google.firebase.messaging.FirebaseMessaging;
-
+import com.google.android.material.switchmaterial.SwitchMaterial;
 
 public class SettingsActivity extends AppCompatActivity {
 
     private static final int NOTIF_PERMISSION_REQUEST = 100;
-    private MaterialButton notificationButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -85,34 +78,54 @@ public class SettingsActivity extends AppCompatActivity {
             return insets;
         });
 
-        applyCalculatedGridTileSize();
-
-        View deviceSetupButton = findViewById(R.id.buttonDeviceSetup);
-        View logoutButton = findViewById(R.id.button10);
-        View themeButton = findViewById(R.id.button2);
-
-        if (deviceSetupButton != null && !SessionState.isAdmin(this)) {
-            deviceSetupButton.setVisibility(View.GONE);
+        // Update profile name based on user type
+        TextView profileName = findViewById(R.id.profileName);
+        if (profileName != null) {
+            if (SessionState.isAdmin(this)) {
+                profileName.setText("Admin Settings");
+            } else {
+                profileName.setText("Student Settings");
+            }
         }
 
-        if (deviceSetupButton != null) {
-            deviceSetupButton.setOnClickListener(v -> {
-                Intent intent = new Intent(SettingsActivity.this, DeviceSetupActivity.class);
-                startActivity(intent);
-            });
+        View logoutButton = findViewById(R.id.button10);
+        View themeButton = findViewById(R.id.button2);
+        SwitchMaterial darkModeToggle = findViewById(R.id.darkModeToggle);
+        TextView darkModeStatus = findViewById(R.id.darkModeStatus);
+
+        // Update dark mode status on load
+        updateDarkModeStatus(darkModeStatus);
+
+        // Set initial switch state
+        if (darkModeToggle != null) {
+            darkModeToggle.setChecked(ThemeHelper.isDarkMode(this));
         }
 
         if (logoutButton != null) {
-            logoutButton.setOnClickListener(v -> LogoutManager.performLogout(SettingsActivity.this));
+            logoutButton.setOnClickListener(v -> showLogoutConfirmationDialog());
+        }
+
+        if (darkModeToggle != null) {
+            darkModeToggle.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                if (isChecked != ThemeHelper.isDarkMode(this)) {
+                    ThemeHelper.toggleTheme(this);
+                    updateDarkModeStatus(darkModeStatus);
+                }
+            });
         }
 
         if (themeButton != null) {
-            themeButton.setOnClickListener(v -> ThemeHelper.toggleTheme(this));
+            themeButton.setOnClickListener(v -> {
+                if (darkModeToggle != null) {
+                    darkModeToggle.setChecked(!darkModeToggle.isChecked());
+                }
+            });
         }
 
-        // Admin Dashboard Button
         View adminDashboardButton = findViewById(R.id.buttonAdminDashboard);
+
         if (adminDashboardButton != null) {
+            // Only show admin dashboard button to admin users
             if (!SessionState.isAdmin(this)) {
                 adminDashboardButton.setVisibility(View.GONE);
             } else {
@@ -124,28 +137,48 @@ public class SettingsActivity extends AppCompatActivity {
         }
 
         // Notifications button
-        notificationButton = findViewById(R.id.button3);
+        View notificationButton = findViewById(R.id.button3);
         if (notificationButton != null) {
             notificationButton.setOnClickListener(v -> {
                 if (isNotificationPermissionGranted()) {
                     showDisablePermissionDialog();
+                    handleFcmToken();
                 } else {
                     requestNotificationPermission();
                 }
-                handleFcmToken();
             });
-            updateNotificationButtonText();
         }
     }
 
-    private void applyCalculatedGridTileSize() {
-        GridLayout settingsGrid = findViewById(R.id.settingsGrid);
-        if (settingsGrid == null) return;
+    @Override
+    public boolean onSupportNavigateUp() {
+        finish();
+        return true;
+    }
 
-        settingsGrid.post(() -> applySquareTileSize(settingsGrid));
-        settingsGrid.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
-            if (right - left != oldRight - oldLeft) applySquareTileSize(settingsGrid);
-        });
+    private void showLogoutConfirmationDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Log Out")
+                .setMessage("Are you sure you want to log out?")
+                .setPositiveButton("Log Out", (dialog, which) -> {
+                    LogoutManager.performLogout(SettingsActivity.this);
+                })
+                .setNegativeButton("Stay Logged In", (dialog, which) -> {
+                    dialog.dismiss();
+                })
+                .setCancelable(true)
+                .show();
+    }
+
+    private void updateDarkModeStatus(TextView darkModeStatus) {
+        if (darkModeStatus != null) {
+            boolean isDarkMode = ThemeHelper.isDarkMode(this);
+            if (isDarkMode) {
+                darkModeStatus.setText("Dark mode on");
+            } else {
+                darkModeStatus.setText("Dark mode off");
+            }
+        }
     }
 
     private boolean isNotificationPermissionGranted() {
@@ -207,64 +240,12 @@ public class SettingsActivity extends AppCompatActivity {
         if (requestCode == NOTIF_PERMISSION_REQUEST) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 Toast.makeText(this, "Notifications enabled", Toast.LENGTH_SHORT).show();
+                handleFcmToken();
+                showDisablePermissionDialog();
             } else {
                 Toast.makeText(this, "Notifications denied", Toast.LENGTH_SHORT).show();
             }
-            updateNotificationButtonText();
         }
     }
 
-    private void updateNotificationButtonText() {
-        boolean enabled = isNotificationPermissionGranted();
-        notificationButton.setText(enabled ? "Notifications: Enabled" : "Notifications: Disabled");
-    }
-
-    private void applySquareTileSize(GridLayout settingsGrid) {
-        if (settingsGrid.getChildCount() == 0) return;
-
-        int availableWidth = settingsGrid.getWidth() - settingsGrid.getPaddingLeft() - settingsGrid.getPaddingRight();
-        if (availableWidth <= 0) return;
-
-
-        View sampleChild = settingsGrid.getChildAt(0);
-        GridLayout.LayoutParams sampleLp = (GridLayout.LayoutParams) sampleChild.getLayoutParams();
-        int horizontalGap = sampleLp.leftMargin + sampleLp.rightMargin;
-        int minTileSize = dpToPx(96);
-        int minCellSize = minTileSize + horizontalGap;
-
-        int columns = Math.max(1, availableWidth / Math.max(1, minCellSize));
-        settingsGrid.setColumnCount(columns);
-
-        int tileSize = Math.max(1, (availableWidth - (columns * horizontalGap)) / columns);
-
-
-
-
-        for (int i = 0; i < settingsGrid.getChildCount(); i++) {
-            View child = settingsGrid.getChildAt(i);
-            GridLayout.LayoutParams lp = (GridLayout.LayoutParams) child.getLayoutParams();
-            lp.width = tileSize;
-            lp.height = tileSize;
-            child.setLayoutParams(lp);
-        }
-    }
-
-    private int dpToPx(int dp) {
-        return Math.round(TypedValue.applyDimension(
-                TypedValue.COMPLEX_UNIT_DIP,
-                dp,
-                getResources().getDisplayMetrics()));
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        updateNotificationButtonText();
-    }
-
-    @Override
-    public boolean onSupportNavigateUp() {
-        finish();
-        return true;
-    }
 }
