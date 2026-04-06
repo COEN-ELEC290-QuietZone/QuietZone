@@ -183,7 +183,11 @@ public class LoginActivity extends AppCompatActivity {
         Map<String, Object> userDoc = new HashMap<>();
         userDoc.put("favourites", new ArrayList<>());
         userDoc.put("notification_settings", new HashMap<>());
-        userDoc.put("role", "user");
+        
+        // Determine if user is admin based on email
+        String email = mAuth.getCurrentUser() != null ? mAuth.getCurrentUser().getEmail() : "";
+        boolean isAdmin = "Admin@test.com".equalsIgnoreCase(email);
+        userDoc.put("role", isAdmin ? "admin" : "user");
 
         db.collection("users").document(uid)
                 .set(userDoc)
@@ -226,15 +230,19 @@ public class LoginActivity extends AppCompatActivity {
         Map<String, Object> userDoc = new HashMap<>();
         userDoc.put("favourites", new ArrayList<>());
         userDoc.put("notification_settings", new HashMap<>());
-        userDoc.put("role", "user");
+        
+        // Determine if user is admin based on email
+        String email = mAuth.getCurrentUser() != null ? mAuth.getCurrentUser().getEmail() : "";
+        boolean isAdmin = "Admin@test.com".equalsIgnoreCase(email);
+        userDoc.put("role", isAdmin ? "admin" : "user");
 
         db.collection("users").document(uid)
                 .set(userDoc)
                 .addOnSuccessListener(unused -> {
                     Log.d("LoginActivity", "User document created for UID: " + uid);
                     // User document created, now proceed with login
-                    SessionState.setUserSession(this, uid, false);
-                    navigateToDashboard(false);
+                    SessionState.setUserSession(this, uid, isAdmin);
+                    navigateToDashboard(isAdmin);
                 })
                 .addOnFailureListener(e -> {
                     Log.e("LoginActivity", "Failed to create user document for UID: " + uid, e);
