@@ -144,9 +144,9 @@
                 android:layout_marginEnd="16dp"
                 android:paddingHorizontal="12dp"
                 android:paddingVertical="8dp"
-                android:background="@color/white"
+                android:background="@color/app_surface"
                 android:text="@string/room_recent_readings"
-                android:textColor="@color/app_on_background"
+                android:textColor="@color/app_on_surface"
                 android:textSize="16sp"
                 android:textStyle="bold" />
 
@@ -159,7 +159,7 @@
                 android:layout_marginStart="16dp"
                 android:layout_marginEnd="16dp"
                 android:layout_marginBottom="0dp"
-                android:background="@color/white"
+                android:background="@color/app_surface"
                 android:orientation="horizontal"
                 android:paddingHorizontal="12dp"
                 android:paddingVertical="6dp"
@@ -217,7 +217,7 @@
                 android:layout_height="1dp"
                 android:layout_marginStart="16dp"
                 android:layout_marginEnd="16dp"
-                android:background="#E0E0E0" />
+                android:background="@color/app_on_surface" />
 
             <!-- Table List -->
             <ListView
