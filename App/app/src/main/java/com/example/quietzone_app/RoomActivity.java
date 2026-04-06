@@ -472,6 +472,7 @@ public class RoomActivity extends AppCompatActivity {
         xAxis.setTextColor(textColor);
         xAxis.setTextSize(10f);
         xAxis.setAvoidFirstLastClipping(false);
+        xAxis.setLabelRotationAngle(45f);
         xAxis.setValueFormatter(new ValueFormatter() {
             @Override
             public String getFormattedValue(float value) {

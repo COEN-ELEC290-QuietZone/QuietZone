@@ -150,7 +150,7 @@ public class NoiseActivity extends AppCompatActivity {
                     if (task.isSuccessful()) {
                         // Get the FCM registration token
                         String token = task.getResult();
-                        Log.d("FCM Token", "Device token: " + token);  // Log the token
+                        Log.d("FCM Token", "Device token: " + token); // Log the token
                         // Optionally, save it to your backend or use it for push notifications
                     } else {
                         Log.e("FCM Token", "Fetching token failed", task.getException());
@@ -613,7 +613,7 @@ public class NoiseActivity extends AppCompatActivity {
 
         @Override
         public View getChildView(int groupPosition, int childPosition, boolean isLastChild,
-                                 View convertView, ViewGroup parent) {
+                View convertView, ViewGroup parent) {
 
             RoomItem room = rooms.get(groupPosition);
 
@@ -722,10 +722,6 @@ public class NoiseActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(android.view.MenuItem item) {
-        if (item.getItemId() == R.id.action_add) {
-            Toast.makeText(this, "Add device", Toast.LENGTH_SHORT).show();
-            return true;
-        }
         return super.onOptionsItemSelected(item);
     }
 
