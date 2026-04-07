@@ -10,7 +10,6 @@
         android:name="android.permission.NEARBY_WIFI_DEVICES"
         android:usesPermissionFlags="neverForLocation"
         tools:targetApi="33" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <queries>
         <package android:name="com.google.android.gms" />
     </queries>
@@ -26,8 +25,7 @@
         <activity
             android:name=".ProfileActivity"
             android:label="Profile"
-            android:parentActivityName=".NoiseActivity"
-            android:exported="false" />
+            android:parentActivityName=".NoiseActivity" />
         <activity
             android:name=".MainActivity"
             android:exported="false" />
@@ -62,11 +60,16 @@
             android:label="Focus Session"
             android:parentActivityName=".NoiseActivity"
             android:exported="false" />
-<service android:name=".PushNotificationServe" android:exported="false">
-<intent-filter>
-<action android:name="com.google.firebase.MESSAGING_EVENT"/>
-</intent-filter>
-</service>
+        <activity
+            android:name=".PrivacyActivity"
+            android:label="Privacy"
+            android:parentActivityName=".SettingsActivity"
+            android:exported="false" />
+        <activity
+            android:name=".HelpActivity"
+            android:label="Help &amp; Support"
+            android:parentActivityName=".SettingsActivity"
+            android:exported="false" />
     </application>
 
 </manifest>

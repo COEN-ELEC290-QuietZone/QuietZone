@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".HelpActivity">
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/my_toolbar"
+        android:layout_width="0dp"
+        android:layout_height="?attr/actionBarSize"
+        android:background="?attr/colorPrimary"
+        android:elevation="0dp"
+        android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+        app:titleTextColor="@color/app_on_primary"
+        app:popupTheme="@style/ThemeOverlay.AppCompat.Light"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <ScrollView
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintTop_toBottomOf="@id/my_toolbar"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="20dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Help &amp; Support"
+                android:textSize="28sp"
+                android:textStyle="bold"
+                android:textColor="@color/app_on_background"
+                android:layout_marginBottom="16dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Welcome to QuietZone. This app helps you find quieter study spaces by showing live environmental noise levels from monitored locations on campus."
+                android:textSize="16sp"
+                android:textColor="@color/app_on_background"
+                android:layout_marginBottom="24dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="How to Use QuietZone"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="@color/app_primary"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Browse the available rooms to view their current noise levels. Compare locations and choose the space that best matches your study needs. You can also save rooms to your favorites for quicker access later."
+                android:textSize="16sp"
+                android:textColor="@color/app_on_background"
+                android:layout_marginBottom="24dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Understanding Noise Levels"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="@color/app_primary"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="QuietZone uses live sensor data to estimate how quiet or busy a room is.\n\n• Quiet means the space is good for focused studying.\n• Moderate means there is some background noise.\n• Busy/Loud means the area may be distracting for quiet work.\n\nNoise levels can change throughout the day as people enter, leave, or talk in the space."
+                android:textSize="16sp"
+                android:textColor="@color/app_on_background"
+                android:layout_marginBottom="24dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Main Features"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="@color/app_primary"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="• Live Room Data: View current noise levels in supported study spaces.\n• Favorites: Save preferred rooms for fast access.\n• Room History: Check recent noise trends to help decide the best time to study.\n• Profile: View your account information and saved rooms."
+                android:textSize="16sp"
+                android:textColor="@color/app_on_background"
+                android:lineSpacingExtra="4dp"
+                android:layout_marginBottom="24dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Troubleshooting"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="@color/app_primary"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="If live room data is not appearing, check your internet connection and try refreshing or reopening the app. If a room has no data, its sensor may be temporarily offline. If your favorites are missing, make sure you are logged into the correct account. If the app is not displaying correctly, try logging out and back in again."
+                android:textSize="16sp"
+                android:textColor="@color/app_on_background"
+                android:layout_marginBottom="24dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Frequently Asked Questions"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="@color/app_primary"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Does QuietZone record conversations?\nNo. QuietZone measures environmental noise levels only and does not store voice recordings.\n\nWhy do noise levels change?\nNoise levels update based on activity in the room, so they may rise or fall throughout the day.\n\nWhy is a room unavailable?\nA room may appear unavailable if sensor data is temporarily missing or the sensor is offline."
+                android:textSize="16sp"
+                android:textColor="@color/app_on_background"
+                android:layout_marginBottom="24dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Privacy Reminder"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="@color/app_primary"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="QuietZone collects only the information needed for app features, such as account details, preferences, and room data. Environmental sensors are used to measure noise levels only."
+                android:textSize="16sp"
+                android:textColor="@color/app_on_background"
+                android:layout_marginBottom="32dp" />
+
+        </LinearLayout>
+    </ScrollView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

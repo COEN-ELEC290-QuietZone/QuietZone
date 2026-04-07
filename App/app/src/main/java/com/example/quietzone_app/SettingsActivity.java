@@ -148,6 +148,24 @@ public class SettingsActivity extends AppCompatActivity {
                 }
             });
         }
+
+        // Privacy button
+        View privacyButton = findViewById(R.id.button4);
+        if (privacyButton != null) {
+            privacyButton.setOnClickListener(v -> {
+                Intent intent = new Intent(SettingsActivity.this, PrivacyActivity.class);
+                startActivity(intent);
+            });
+        }
+
+        // Help button
+        View helpButton = findViewById(R.id.button6);
+        if (helpButton != null) {
+            helpButton.setOnClickListener(v -> {
+                Intent intent = new Intent(SettingsActivity.this, HelpActivity.class);
+                startActivity(intent);
+            });
+        }
     }
 
     @Override
