@@ -9,6 +9,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import com.google.firebase.messaging.FirebaseMessaging;
+import android.util.Log;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -40,5 +42,13 @@ public class MainActivity extends AppCompatActivity {
 
         // Navigate to SettingsActivity
         settingsButton.setOnClickListener(v -> startActivity(new Intent(this, SettingsActivity.class)));
+
+        // Subscribe to sensor alert notifications
+        FirebaseMessaging.getInstance().subscribeToTopic("sensor_alerts")
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful()) {
+                        Log.d("FCM", "Subscribed to sensor_alerts");
+                    }
+                });
     }
 }

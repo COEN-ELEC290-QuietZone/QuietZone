@@ -9,6 +9,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
+import com.google.firebase.messaging.FirebaseMessaging;
 
 //import android.graphics.Color;
 //import android.os.Bundle;
@@ -233,6 +234,14 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void navigateToDashboard(boolean isAdmin) {
+        // Subscribe to sensor alert notifications
+        FirebaseMessaging.getInstance().subscribeToTopic("sensor_alerts")
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful()) {
+                        Log.d("FCM", "Subscribed to sensor_alerts");
+                    }
+                });
+
         // Both admin and regular users navigate to NoiseActivity
         // Admin can access AdminDashboard from Settings menu
         Intent intent = new Intent(this, NoiseActivity.class);
