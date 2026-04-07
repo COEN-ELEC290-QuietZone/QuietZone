@@ -234,19 +234,19 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void navigateToDashboard(boolean isAdmin) {
-        // Subscribe to sensor alert notifications
-        FirebaseMessaging.getInstance().subscribeToTopic("sensor_alerts")
-                .addOnCompleteListener(task -> {
-                    if (task.isSuccessful()) {
-                        Log.d("FCM", "Subscribed to sensor_alerts");
-                    }
-                });
+        if (isAdmin) {
+            FirebaseMessaging.getInstance().subscribeToTopic("sensor_alerts")
+                    .addOnCompleteListener(task -> {
+                        if (task.isSuccessful()) {
+                            Log.d("FCM", "Subscribed to sensor_alerts");
+                        }
+                    });
+        } else {
+            // Unsubscribe in case they were previously subscribed as admin
+            FirebaseMessaging.getInstance().unsubscribeFromTopic("sensor_alerts");
+        }
 
-        // Both admin and regular users navigate to NoiseActivity
-        // Admin can access AdminDashboard from Settings menu
         Intent intent = new Intent(this, NoiseActivity.class);
-        Log.d("LoginActivity", "Navigating to NoiseActivity (IsAdmin: " + isAdmin + ")");
-
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();
