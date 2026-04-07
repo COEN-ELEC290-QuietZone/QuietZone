@@ -617,11 +617,10 @@ public class NoiseActivity extends AppCompatActivity {
 
             RoomItem room = rooms.get(groupPosition);
 
-            View view = convertView;
-            if (view == null) {
-                view = LayoutInflater.from(NoiseActivity.this)
-                        .inflate(R.layout.list_item_room_child, parent, false);
-            }
+            // Always create a fresh view to avoid showing wrong room's data when views are
+            // recycled
+            View view = LayoutInflater.from(NoiseActivity.this)
+                    .inflate(R.layout.list_item_room_child, parent, false);
 
             room.speedView = view.findViewById(R.id.childSpeedView);
             room.soundText = view.findViewById(R.id.childSoundText);
