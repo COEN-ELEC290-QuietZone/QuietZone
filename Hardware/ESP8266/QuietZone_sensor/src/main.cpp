@@ -49,7 +49,7 @@ void setup()
   Serial.println("[INFO] QuietZone ESP8266 Sensor Starting...");
 
   soundSensor.begin();
-  // mqttManager.begin();
+  mqttManager.begin();
 
   if (kSetupModeEnabled)
   {
@@ -65,16 +65,17 @@ void loop()
   mqttManager.maintainConnection();
 
   float soundLevel = soundSensor.readSoundLevel();
+  String soundStatus = soundSensor.getStatus();
 
   soundSensor.printDebugInfo();
 
-  Serial.println("Simple Sound Level: " + String(soundLevel, 1) + " dB");
+  Serial.println("Simple Sound Level: " + String(soundLevel, 1) + " dB, Status: " + soundStatus);
 
   if (mqttManager.isConnected() && mqttManager.shouldPublish())
   {
-    if (mqttManager.publishSoundData(soundLevel))
+    if (mqttManager.publishSoundData(soundLevel, soundStatus))
     {
-      Serial.println("[MQTT] Data published: Sensor 1, " + String(soundLevel, 1) + " dB");
+      Serial.println("[MQTT] Data published: Sensor 1, " + String(soundLevel, 1) + " dB, Status: " + soundStatus);
     }
     mqttManager.updateLastPublish();
   }

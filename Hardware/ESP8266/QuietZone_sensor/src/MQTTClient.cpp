@@ -73,20 +73,24 @@ void MQTTClientManager::maintainConnection()
     mqttClient.loop();
 }
 
-bool MQTTClientManager::publishSoundData(float dbLevel)
+bool MQTTClientManager::publishSoundData(float dbLevel, String status)
 {
     String topic = "sensors/" + String(sensorId) + "/sound_data";
 
     String payload = "{\"sensor_name\":\"" + String(sensorName) + "\""
-                     ",\"sensor_id\":\"" + String(sensorId) + "\""
-                     ",\"db_level\":" + String(dbLevel, 1) +
-                     ",\"location\":\"" + String(location) + "\"}";
+                                                                  ",\"sensor_id\":\"" +
+                     String(sensorId) + "\""
+                                        ",\"db_level\":" +
+                     String(dbLevel, 1) +
+                     ",\"status\":\"" + status + "\""
+                                                 ",\"location\":\"" +
+                     String(location) + "\"}";
 
     bool published = mqttClient.publish(topic.c_str(), payload.c_str());
 
     if (published)
     {
-        Serial.println("[INFO] MQTT publish OK: " + String(sensorName) + " (" + String(sensorId) + "), " + String(dbLevel, 1) + " dB");
+        Serial.println("[INFO] MQTT publish OK: " + String(sensorName) + " (" + String(sensorId) + "), " + String(dbLevel, 1) + " dB, Status: " + status);
     }
     else
     {
