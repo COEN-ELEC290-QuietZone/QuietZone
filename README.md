@@ -1,4 +1,6 @@
-# COEN-ELEC390 Project - QuietZone
+# QuietZone 
+
+Semester-long group project for COEN-ELEC390 (Engineering Product Design) at Concordia University
 
 ## Overview
 
@@ -8,27 +10,41 @@ QuietZone is a real-time noise monitoring system designed to help users find qui
 
 Finding quiet spaces in busy environments like libraries, study areas, or campuses can be challenging without real-time information about noise levels. Existing solutions often lack accessibility, real-time updates, or user-friendly interfaces. QuietZone aims to provide an accessible, scalable noise monitoring system that helps users make informed decisions about where to find peaceful environments for work, study, or relaxation.
 
-## Features
+## Key Features
 
-### Core Functionality
+### 1. Real-time Noise Monitoring
 
-**Real-Time Noise Monitoring**
 
-- Sound sensor-based decibel (dB) level measurement with continuous monitoring
-- Live noise data display for multiple monitored areas
-- Noise level categorization (Low, Medium, High) for easy interpretation
+![QuietZone Demo](Qz_assets/Qz_livenoise.gif)
 
-**Admin Sensor Management**
+Users can browse study rooms and instantly see whether a space is quiet, moderate, or loud based on live sensor data.
 
-- Sensor registration and assignment to monitored areas
-- Real-time sensor data monitoring and validation
-- Inactivity detection to identify malfunctioning sensors
+### 2. Favorite Rooms
 
-**User-Friendly Mobile Interface**
+![QuietZone Demo](Qz_assets/Qz_favrooms.gif)
 
-- Android app displaying current noise levels for each area
-- Automatic data refresh (≤5 seconds) for real-time updates
-- Noise categorization to help users quickly identify quiet zones
+Users can save preferred study spaces and quickly access them at the top of the list.
+
+### 3. Focus Session and Focus Streaks
+
+![QuietZone Demo](Qz_assets/Qz_focussession.gif)
+
+Users can start a study timer inside the app and save completed sessions. The app tracks repeated use to encourage consistency.
+
+### 4. Admin Dashboard
+
+![QuietZone Demo](Qz_assets/Qz_admin.gif)
+
+An admin-side interface supports sensor management and inactivity detection.
+
+### 5. Dark Mode
+
+![QuietZone Demo](Qz_assets/Qz_dark.gif)
+
+Users can switch themes for comfort and accessibility
+
+
+
 
 ## Technology Stack
 
@@ -108,3 +124,4 @@ adb uninstall com.example.quietzone_app
 ## License
 
 This project is developed as part of the COEN-ELEC390 course and is intended for educational purposes.
+
