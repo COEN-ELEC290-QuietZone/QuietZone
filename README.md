@@ -6,6 +6,8 @@ Semester-long group project for COEN-ELEC390 (Engineering Product Design) at Con
 
 QuietZone is a real-time noise monitoring system designed to help users find quiet locations in various environments. Built with distributed sound sensors and IoT communication, it enables users to view live noise levels across monitored areas through an intuitive mobile interface, while providing administrators with comprehensive sensor management capabilities.
 
+![QuietZone Demo](Qz_assets/Qz_overview.gif)
+
 ## Problem Statement
 
 Finding quiet spaces in busy environments like libraries, study areas, or campuses can be challenging without real-time information about noise levels. Existing solutions often lack accessibility, real-time updates, or user-friendly interfaces. QuietZone aims to provide an accessible, scalable noise monitoring system that helps users make informed decisions about where to find peaceful environments for work, study, or relaxation.
